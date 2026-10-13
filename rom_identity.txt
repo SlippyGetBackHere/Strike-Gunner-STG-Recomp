@@ -1,0 +1,26 @@
+# ROM identity for Strike Gunner S.T.G — the single source of truth.
+#
+# Read by three consumers, so a revision change is made once, here:
+#   - the build   (CMake generates snesrecomp_rom_identity.h from this file)
+#   - tools/regen.sh
+#   - .github/workflows/release.yml
+#
+# Format is `key = value`, one per line; `#` starts a comment. Values may be
+# quoted. Leaving a digest empty means the build cannot verify a ROM it is
+# handed — it will say so rather than accept it.
+
+display_name    = Strike Gunner S.T.G
+rom_file        = Strike Gunner S.T.G (USA).sfc
+# Every digest of the bare image (copier header stripped), so the Retro
+# catalog can take a submission's identity from this file rather than ask
+# the submitter to hash the ROM again. The build verifies on crc32/sha256.
+expected_crc32  = d054e288
+expected_md5    = 6041d861ae1e590dee99e45a3eeabd49
+expected_sha1   = 110e46dc4d6301c3b41f8a9337e4ba78719b7917
+expected_sha256 = 05f14e6ed3394d9273e2397769a8acf1a9db646be6066e82269521e8eec53562
+rom_size        = 1048576
+mapping         = lorom
+region          = USA
+# What a mod package's [[target]] game_id must name to apply to this title
+# (snesrecomp/docs/MOD_PACKAGES.md). Stable across revisions on purpose.
+game_id         = strikegunnerstg-usa
