@@ -1,38 +1,22 @@
 # Known issues
 
-## Audio: occasional pops
+## Audio: pops (explained, authentic)
 
-**Status:** open, parked 2026-10-13. More noticeable in stage 4's heaviest
-section with `ReduceSlowdown = 1` (reported 2026-10-14), plausibly because
-the scene then runs at full speed and triggers more sound effects.
+**Status:** explained 2026-10-14. Not a port bug.
 
-Short pops or crackles at irregular moments during play. First noticed in
-stage 2 with Spray Missiles, but they also occur with the default weapon and
-in stage 1.
+The pops are in the game's own sound. One looping instrument's sample data
+decodes past full scale and the S-DSP wraps it to the opposite extreme, a
+rail-to-rail spike lasting a sample or two. snes9x produces the same pops at
+the same rate (stage 4 heavy section, one minute: reference 6, port 7), and
+gameplay footage of the console has them; a console's analog output and a
+TV soften them. They are more frequent with `ReduceSlowdown = 1` only because
+busy scenes then run at full speed.
 
-What is known:
-
-- The pops are in the emulated sound chip's own output, before anything
-  reaches the host audio device. A raw capture of the S-DSP output
-  (`SNESRECOMP_DSPOUT`) contains them, so device, buffer size and sample
-  rate settings are not the cause.
-- The loudest ones line up with key-on events where the music driver
-  restarts several voices at once, some still sounding loudly with no
-  key-off first. Real hardware also cuts a restarted voice instantly, so
-  this pattern alone is not proof of an emulation fault.
-- The game runs echo on all eight voices (EON=$FF, ESA=$80, EDL=$0F,
-  EFB=$28/$32, EVOL=$DD/$E7) -- the most intricate part of the chip and a
-  plausible place for a difference.
-- Handling the final block of a one-shot sample one block later than
-  hardware was tested and ruled out: fixing it changed the output by about
-  1% of full scale.
-- Headless captures are deterministic, so a candidate fix can be checked
-  sample for sample.
-
-Next step when resumed: compare against an independent emulator with
-`snesrecomp/tools/snesref` (needs a libretro SNES core and the SDL2
-development package), driving both with the same input script and diffing
-the DSP register trace and audio output to find the first divergence.
+`AudioDeclick = 1` (the default) saturates the overflow instead and removes
+the largest ones; the rest are the instrument's normal sharp edges and the
+noise channel. A low-pass filter over the output and a fade on key-on were
+tried first and rejected: the first dulled the music, the second had no
+effect.
 
 ## Audio: short repeating dropouts in long sessions
 
@@ -61,12 +45,12 @@ not yet explained.
 section runs 3,600 of 3,600 frames on time. Anything the game times by
 counting CPU instructions rather than vblanks runs faster with it on.
 
-## Timing differs from the interpreted build
+## Timing differs from the interpreted build (resolved)
 
-The compiled build's guest state diverges from an interpreter-only build of
-the same code from frame 8 of boot: a loading routine gets a different amount
-of work done per frame. Play testing judged the compiled build closer to the
-original console, but the cause has not been found.
+Caused by two compiled-mode timing bugs, both fixed: `$4212` reads added a
+beam tick on top of charged time, and compiled code was charged 8 master
+clocks per cycle. Against snes9x, compiled and interpreted builds now first
+diverge from the reference at the same frame (3,162 of the reference route).
 
 ## Coverage
 

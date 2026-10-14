@@ -43,6 +43,7 @@
 #include "beam_frame_driver.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
+#include "snes/dsp.h"
 #include "snes/interp_bridge.h"
 #include "snes/ppu.h"
 #include "snes/saveload.h"
@@ -113,10 +114,26 @@ static void take_interrupt(uint32_t vector) {
  * config.ini from the settings it knows. */
 static const char kStgOptionsFile[] = "strikegunner.ini";
 
+/* ── Audio de-click ────────────────────────────────────────────────────────
+ *
+ * One of the game's looping instruments decodes past full scale, and the S-DSP
+ * wraps such a sample to the opposite extreme: a rail-to-rail spike heard as
+ * a pop. It is the console's behaviour -- snes9x shows the same pops at the
+ * same rate in stage 4 -- softened on real hardware by the analog output.
+ * AudioDeclick saturates instead (framework dsp_set_declick). A low-pass
+ * filter over the whole output was tried first: it dulled the music before
+ * it removed the pops; fading out voices cut by key-on did nothing, because
+ * key-on was not the cause. */
+static const char kStgDeclickText[] =
+    "\n# Remove pops where the game's sound samples overflow.\n"
+    "# 1 = on (default), 0 = output exactly as the console's sound chip.\n"
+    "AudioDeclick = 1\n";
+
 static void StgLoadOptions(void)
 {
   static const uint32_t kClockQ8[] = { 256u, 128u, 85u, 64u };
-  int level = 0;
+  int level = 0, declick = 1;
+  bool seen_declick = false;
   FILE *f = fopen(kStgOptionsFile, "r");
   if (!f) {
     f = fopen(kStgOptionsFile, "w");
@@ -127,22 +144,35 @@ static void StgLoadOptions(void)
             "# 1 = 2x CPU, 2 = 3x CPU, 3 = 4x CPU\n"
             "# Only frames where the game would slow down change; restart to apply.\n"
             "ReduceSlowdown = 0\n", f);
+      fputs(kStgDeclickText, f);
       fclose(f);
     }
+    seen_declick = true;
   } else {
     char line[256];
     while (fgets(line, sizeof(line), f)) {
       int v;
       if (sscanf(line, " ReduceSlowdown = %d", &v) == 1)
         level = v;
+      else if (sscanf(line, " AudioDeclick = %d", &v) == 1)
+        declick = v, seen_declick = true;
     }
     fclose(f);
+    if (!seen_declick) {
+      /* Written by a build before the de-click existed: add its keys. */
+      f = fopen(kStgOptionsFile, "a");
+      if (f) {
+        fputs(kStgDeclickText, f);
+        fclose(f);
+      }
+    }
   }
   if (level < 0) level = 0;
   if (level > 3) level = 3;
   g_snes_cpu_clock_q8 = kClockQ8[level];
-  fprintf(stderr, "[stg] ReduceSlowdown = %d (CPU clock %u/256)\n", level,
-          (unsigned)g_snes_cpu_clock_q8);
+  dsp_set_declick(declick);
+  fprintf(stderr, "[stg] ReduceSlowdown = %d (CPU clock %u/256), AudioDeclick = %d\n",
+          level, (unsigned)g_snes_cpu_clock_q8, declick);
 }
 
 void GameRunOneFrame(void)

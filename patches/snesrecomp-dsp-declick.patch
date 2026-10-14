@@ -1,0 +1,86 @@
+From 817a12e7031a7123c34f3ec80f778003a21f6b5f Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 12:57:47 -0400
+Subject: [PATCH] dsp: optional de-click that saturates sample overflows
+
+BRR decode keeps only 15 bits after clamping to 16, and the Gaussian
+interpolator wraps its first three taps to 16 bits, as on hardware. A
+game whose sample data overshoots gets a rail-to-rail spike lasting a
+sample or two, heard as a pop through a digital output. Add
+dsp_set_declick(): when enabled both saturate instead of wrapping.
+Off by default, so the default output stays hardware-exact.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ runner/src/snes/dsp.c | 26 ++++++++++++++++++++++++--
+ runner/src/snes/dsp.h |  3 +++
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/runner/src/snes/dsp.c b/runner/src/snes/dsp.c
+index 17304fd..9f07a87 100644
+--- a/runner/src/snes/dsp.c
++++ b/runner/src/snes/dsp.c
+@@ -58,6 +58,22 @@ const uint16_t gaussValues[512] = {
+ };
+ 
+ static void dsp_cycleChannel(Dsp* dsp, int ch);
++
++/* Optional de-click (dsp_set_declick). Two hardware overflows turn a sample
++ * that runs past full scale into one at the opposite extreme: BRR decode
++ * keeps only 15 bits after clamping to 16, and the Gaussian interpolator
++ * wraps its first three taps to 16 bits. A game whose sample data overshoots
++ * gets a rail-to-rail spike lasting a sample or two, heard as a pop through
++ * a digital output (a console's analog output softens it). With de-click on,
++ * both saturate instead of wrapping. Sample data that never overflows decodes
++ * exactly as before; after an overflow the rest of that BRR block follows the
++ * saturated value through the filter history. Off by default: the default
++ * output is hardware-exact. */
++static int s_dsp_declick;
++
++void dsp_set_declick(int enabled) {
++  s_dsp_declick = enabled != 0;
++}
+ static void dsp_handleEcho(Dsp* dsp, int* outputL, int* outputR);
+ static void dsp_handleGain(Dsp* dsp, int ch, bool liveGain);
+ static void dsp_decodeBrr(Dsp* dsp, int ch);
+@@ -444,7 +460,10 @@ int16_t dsp_getSample(Dsp* dsp, int ch, int sampleNum, int offset) {
+   int out = (gaussValues[0xff - offset] * oldests) >> 10;
+   out += (gaussValues[0x1ff - offset] * olders) >> 10;
+   out += (gaussValues[0x100 + offset] * olds) >> 10;
+-  out = ((int16_t) (out & 0xffff)); // clip 16-bit
++  if (s_dsp_declick)
++    out = out < -0x8000 ? -0x8000 : (out > 0x7fff ? 0x7fff : out); // saturate
++  else
++    out = ((int16_t) (out & 0xffff)); // clip 16-bit
+   out += (gaussValues[offset] * news) >> 10;
+   out = out < -0x8000 ? -0x8000 : (out > 0x7fff ? 0x7fff : out); // clamp 16-bit
+   return out >> 1;
+@@ -506,7 +525,10 @@ static void dsp_decodeBrr(Dsp* dsp, int ch) {
+       case 3: s += 2 * old + ((13 * -old) >> 6) - older + ((3 * older) >> 4); break;
+     }
+     s = s < -0x8000 ? -0x8000 : (s > 0x7fff ? 0x7fff : s); // clamp 16-bit
+-    s = ((int16_t) ((s & 0x7fff) << 1)) >> 1; // clip 15-bit
++    if (s_dsp_declick)
++      s = s < -0x4000 ? -0x4000 : (s > 0x3fff ? 0x3fff : s); // saturate 15-bit
++    else
++      s = ((int16_t) ((s & 0x7fff) << 1)) >> 1; // clip 15-bit
+     older = old;
+     old = s;
+     dsp->channel[ch].decodeBuffer[i + 3] = s;
+diff --git a/runner/src/snes/dsp.h b/runner/src/snes/dsp.h
+index 5088a31..802c9de 100644
+--- a/runner/src/snes/dsp.h
++++ b/runner/src/snes/dsp.h
+@@ -107,6 +107,9 @@ Dsp *dsp_init(uint8_t *ram);
+ void dsp_free(Dsp* dsp);
+ void dsp_reset(Dsp* dsp);
+ void dsp_cycle(Dsp* dsp);
++/* Saturate BRR-decode and interpolation overflows instead of wrapping them
++ * (0 = hardware behaviour, the default): see dsp.c. */
++void dsp_set_declick(int enabled);
+ uint8_t dsp_read(Dsp* dsp, uint8_t adr);
+ void dsp_write(Dsp* dsp, uint8_t adr, uint8_t val);
+ /* Native-rate output-ring access. The consumer (RtlRenderAudio) reconciles the
+-- 
+2.50.0.windows.2
+

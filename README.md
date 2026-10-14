@@ -77,12 +77,15 @@ than mis-executing ten frames in.
 | Key | Values |
 |---|---|
 | `ReduceSlowdown` | `0` authentic console speed (default); `1`, `2`, `3` run the SNES CPU 2x, 3x, 4x faster |
+| `AudioDeclick` | `1` (default) caps sound samples that overflow instead of wrapping them, removing the loudest pops; `0` is the console's exact output |
 
 The game slows down where its logic needs more than a frame; at `1` the
 heaviest scene measured (stage 4, ocean section, extra fighters out) holds
 60 fps. Frames that already fit are unchanged, so game speed and music stay
-authentic. Restart to apply. It is a separate file because the host rewrites
-`config.ini` from the settings it knows.
+authentic. Restart to apply. Some pops remain with `AudioDeclick` on: they are
+in the original game's sound (snes9x and footage of the console have them
+too). It is a separate file because the host rewrites `config.ini` from the
+settings it knows.
 
 ## Layout
 
