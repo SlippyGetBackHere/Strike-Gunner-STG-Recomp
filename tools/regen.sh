@@ -76,21 +76,32 @@ else
   echo "== Skipping ROM verification (--no-verify) =="
 fi
 
-GEN_ARGS=(--rom "$ROM" --cfg-dir recomp --out-dir src/gen
-          --funcs-h recomp/funcs.h --project-root "$ROOT")
-if [ "$CFG_ROOTS" -eq 1 ]; then GEN_ARGS+=(--cfg-roots); fi
+EMIT_ARGS=(--rom "$ROM" --cfg-dir recomp --out-dir src/gen
+           --analysis-backend native)
+if [ "$CFG_ROOTS" -eq 1 ]; then EMIT_ARGS+=(--cfg-roots); fi
 # Coverage captures seed the analyzer with the entry points the interpreter
 # was actually seen reaching (snesrecomp/docs/COVERAGE_FEEDBACK.md). Without
 # them only the vectors are roots and almost nothing is compiled. They hold
 # addresses and hit counts, never ROM data. Add a capture to recomp/coverage/
 # to widen what is compiled; never remove one without re-checking the build.
+#
+# Each capture comes from a different build, and only the emitter's
+# historical input validates captures one at a time instead of refusing to
+# merge them; `snesrecomp_cli.py generate` does not forward it. So the
+# emitter and the funcs.h sync are run directly here, after the CLI has
+# verified the ROM above.
 for profile in recomp/coverage/*.json recomp/coverage/*.jsonl; do
-  [ -f "$profile" ] && GEN_ARGS+=(--profile-manifest "$profile")
+  [ -f "$profile" ] && EMIT_ARGS+=(--historical-profile-manifest "$profile")
 done
-if [ "$VERIFY" -eq 1 ]; then GEN_ARGS+=("${VERIFY_ARGS[@]}"); fi
+ANALYZER="$SNESRECOMP_ROOT/recompiler-rs/target/release/snesrecomp-analyze"
+for candidate in "$ANALYZER.exe" "$ANALYZER"; do
+  if [ -f "$candidate" ]; then export SNESRECOMP_NATIVE_ANALYZER="$candidate"; break; fi
+done
 
 echo "== Generating src/gen =="
-"$PYTHON" "$CLI" generate "${GEN_ARGS[@]}"
+mkdir -p src/gen
+"$PYTHON" "$SNESRECOMP_ROOT/tools/v2_emit.py" "${EMIT_ARGS[@]}"
+"$PYTHON" "$SNESRECOMP_ROOT/tools/v2_sync_funcs_h.py" --cfg-dir recomp --out recomp/funcs.h
 
 echo
 echo "Done. Build with:"

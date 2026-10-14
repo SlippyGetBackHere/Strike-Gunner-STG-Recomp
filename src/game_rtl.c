@@ -68,6 +68,11 @@ static uint64_t s_frame_end;
 
 uint64_t GameFrameDeadline(void) { return s_frame_end; }
 
+/* Set by a stub that handed back a routine to run rather than to wait in. */
+static bool s_resume_now;
+
+void GameRequestImmediateResume(void) { s_resume_now = true; }
+
 static uint32_t read_vector(uint32_t addr) {
   uint32_t lo = snes_read(g_snes, addr);
   uint32_t hi = snes_read(g_snes, addr + 1u);
@@ -110,6 +115,7 @@ void GameRunOneFrame(void)
   }
   s_frame_end = frame_end;
 
+  s_resume_now = false;
   if (booting) {
     s_resume_pc = read_vector(0x00FFFCu);
   } else {
@@ -139,6 +145,10 @@ void GameRunOneFrame(void)
     }
     if (g_cpu.master_cycles >= frame_end)
       break;
+    if (s_resume_now) {
+      s_resume_now = false;
+      continue;
+    }
     if (g_snes->inIrq && !g_cpu._flag_I) {
       take_interrupt(read_vector(0x00FFEEu));
       continue;

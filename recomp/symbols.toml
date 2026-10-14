@@ -19,3 +19,1339 @@ addr = "86c4"
 bank = 0
 emit = false
 note = "Native NMI vector ($FFEA)"
+
+# Object handlers: the per-frame object loop at $03:8200 walks 128 slots
+# ($056F + $20*n) and calls the handler for each slot type byte through the
+# 256-entry table at $03:8000 (JSR $8247 -> JML [$9C]), with A 8-bit and X
+# 16-bit. Every table entry is listed so enemies from stages a coverage
+# capture never reached are compiled too. Named by the first type index
+# that uses each handler; obj_null_86ed is the bare RTS for empty types.
+
+[[func]]
+name = "obj_null_86ed"
+addr = "86ed"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea9_86f0"
+addr = "86f0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec0_8acd"
+addr = "8acd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec1_8b1f"
+addr = "8b1f"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec2_8b75"
+addr = "8b75"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typef2_8bc8"
+addr = "8bc8"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec3_8c13"
+addr = "8c13"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec7_8c63"
+addr = "8c63"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typecc_8cb5"
+addr = "8cb5"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typecd_8cdf"
+addr = "8cdf"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec4_8d0a"
+addr = "8d0a"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec5_8d31"
+addr = "8d31"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typec6_8d6d"
+addr = "8d6d"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typecf_8dcf"
+addr = "8dcf"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typece_8ebc"
+addr = "8ebc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7e_8f43"
+addr = "8f43"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type60_90c0"
+addr = "90c0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type40_93fa"
+addr = "93fa"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type41_9432"
+addr = "9432"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type61_953c"
+addr = "953c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type62_9975"
+addr = "9975"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type63_a3a9"
+addr = "a3a9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type44_a633"
+addr = "a633"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type46_a7dd"
+addr = "a7dd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type47_a824"
+addr = "a824"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7f_a8b1"
+addr = "a8b1"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type64_a94b"
+addr = "a94b"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7d_a9e7"
+addr = "a9e7"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type65_aa95"
+addr = "aa95"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type66_abb2"
+addr = "abb2"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type48_add1"
+addr = "add1"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type67_ae99"
+addr = "ae99"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type4a_b042"
+addr = "b042"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type68_b0c0"
+addr = "b0c0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type69_b456"
+addr = "b456"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type4d_b65b"
+addr = "b65b"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type4f_b7bc"
+addr = "b7bc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6a_b7f7"
+addr = "b7f7"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed2_b885"
+addr = "b885"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6b_b9a4"
+addr = "b9a4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6c_bb80"
+addr = "bb80"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed0_bb93"
+addr = "bb93"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6d_bd2e"
+addr = "bd2e"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed3_be28"
+addr = "be28"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type01_be60"
+addr = "be60"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type02_be65"
+addr = "be65"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type0d_be6a"
+addr = "be6a"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type0f_be6f"
+addr = "be6f"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type10_be74"
+addr = "be74"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type3f_be79"
+addr = "be79"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typebe_beed"
+addr = "beed"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeec_bf68"
+addr = "bf68"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type93_bfab"
+addr = "bfab"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type05_c267"
+addr = "c267"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type06_c2af"
+addr = "c2af"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type07_c2f1"
+addr = "c2f1"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type95_c366"
+addr = "c366"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type94_c3bb"
+addr = "c3bb"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type90_c3cd"
+addr = "c3cd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type80_c3d4"
+addr = "c3d4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type89_c3db"
+addr = "c3db"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type86_c3e2"
+addr = "c3e2"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type88_c3e9"
+addr = "c3e9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typef0_c446"
+addr = "c446"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typefb_c4dd"
+addr = "c4dd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8f_c657"
+addr = "c657"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8e_c6b7"
+addr = "c6b7"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea7_c70f"
+addr = "c70f"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8a_c758"
+addr = "c758"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeaf_c82b"
+addr = "c82b"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb5_c861"
+addr = "c861"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8b_c8a7"
+addr = "c8a7"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type9c_c8c0"
+addr = "c8c0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type9d_cd09"
+addr = "cd09"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type98_cd4c"
+addr = "cd4c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type9a_cdcc"
+addr = "cdcc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type92_ce18"
+addr = "ce18"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8d_ce4a"
+addr = "ce4a"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type91_ce63"
+addr = "ce63"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type81_ce66"
+addr = "ce66"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type83_cea4"
+addr = "cea4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb0_cf7a"
+addr = "cf7a"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type84_d04d"
+addr = "d04d"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type85_d085"
+addr = "d085"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb1_d0ca"
+addr = "d0ca"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb2_d0e4"
+addr = "d0e4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb3_d0fe"
+addr = "d0fe"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb4_d12e"
+addr = "d12e"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type97_d1d4"
+addr = "d1d4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb7_d352"
+addr = "d352"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb8_d3a4"
+addr = "d3a4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type9b_d3ea"
+addr = "d3ea"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeb9_d57b"
+addr = "d57b"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea0_d5db"
+addr = "d5db"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeac_d642"
+addr = "d642"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typebb_d6c5"
+addr = "d6c5"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeba_d753"
+addr = "d753"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea1_d999"
+addr = "d999"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea8_d9c9"
+addr = "d9c9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea3_d9e4"
+addr = "d9e4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typeaa_dc32"
+addr = "dc32"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea4_dcab"
+addr = "dcab"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea5_dfcc"
+addr = "dfcc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typea6_e2cd"
+addr = "e2cd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type11_e4b2"
+addr = "e4b2"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type21_e4b9"
+addr = "e4b9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type20_e6fc"
+addr = "e6fc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type12_e782"
+addr = "e782"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type22_e789"
+addr = "e789"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type15_e919"
+addr = "e919"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type25_e924"
+addr = "e924"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1b_e9fd"
+addr = "e9fd"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2b_ea04"
+addr = "ea04"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type31_eae6"
+addr = "eae6"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type14_eb86"
+addr = "eb86"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type24_eb8d"
+addr = "eb8d"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type18_ec6f"
+addr = "ec6f"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1c_ecd9"
+addr = "ecd9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2c_ece0"
+addr = "ece0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type13_edab"
+addr = "edab"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type23_edb2"
+addr = "edb2"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1d_ef94"
+addr = "ef94"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2d_ef9b"
+addr = "ef9b"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type16_f0af"
+addr = "f0af"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type26_f0b6"
+addr = "f0b6"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type33_f301"
+addr = "f301"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1e_f3d9"
+addr = "f3d9"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2e_f3e0"
+addr = "f3e0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1a_f566"
+addr = "f566"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2a_f56d"
+addr = "f56d"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type19_f63c"
+addr = "f63c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type29_f643"
+addr = "f643"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type1f_f79c"
+addr = "f79c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type2f_f7a3"
+addr = "f7a3"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type8c_f9a0"
+addr = "f9a0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed6_fbfa"
+addr = "fbfa"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6e_fbff"
+addr = "fbff"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed5_fc04"
+addr = "fc04"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type6f_fc10"
+addr = "fc10"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type70_fc1c"
+addr = "fc1c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type71_fc28"
+addr = "fc28"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type72_fc34"
+addr = "fc34"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type73_fc40"
+addr = "fc40"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type74_fd50"
+addr = "fd50"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type75_fd5c"
+addr = "fd5c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5a_fd68"
+addr = "fd68"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type59_fd74"
+addr = "fd74"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type58_fd80"
+addr = "fd80"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type57_fd8c"
+addr = "fd8c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type56_fd98"
+addr = "fd98"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type55_fda4"
+addr = "fda4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type76_fdb4"
+addr = "fdb4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type77_fdc4"
+addr = "fdc4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type78_fdd0"
+addr = "fdd0"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed7_fddc"
+addr = "fddc"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type79_fde8"
+addr = "fde8"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7a_fdf4"
+addr = "fdf4"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7b_fe00"
+addr = "fe00"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5c_fe0c"
+addr = "fe0c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5b_fe18"
+addr = "fe18"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type7c_fe24"
+addr = "fe24"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5f_fe30"
+addr = "fe30"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_typed9_fe3c"
+addr = "fe3c"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5e_fe48"
+addr = "fe48"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+[[func]]
+name = "obj_type5d_fe54"
+addr = "fe54"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0
+
+# The object loop itself: walks the 128 slots and calls each handler.
+[[func]]
+name = "obj_run_all"
+addr = "8200"
+bank = 3
+emit = true
+entry_m = 1
+entry_x = 0

@@ -7,6 +7,8 @@
  * be translated yet, leave it to the interpreter tier instead.
  */
 
+#include <stdbool.h>
+
 #include "cpu_state.h"
 #include "game_rtl.h"
 #include "snes/interp_bridge.h"
@@ -35,11 +37,25 @@
  *             waits X frames; the NMI handler counts $0545 down.
  *   $00:9151  the same wait, ended early by a pad bit through ($90).
  *   $05:A636  polls HVBJOY ($4212) for the end, then the start, of vblank.
+ *
+ * Task switches. $8D2E runs each task slot until the task yields through
+ * $8D68, which saves the task's registers and moves to the next slot; a
+ * task is resumed by an RTS to its saved address. Neither returns to its
+ * caller the way a call does, so they go back to the interpreter the same
+ * way. Run there, every resumed task also lives in the driver's own frame,
+ * where an inline wait loop parks like any other: the ending sequence's
+ * `LDA $0540 / BNE` used to spin in a nested frame until the step cap and
+ * reset the game instead of showing the credits.
  */
-static RecompReturn StgFrameWait(CpuState *cpu, uint32 entry_pc24,
-                                 uint8 frame_size)
+/* Hand a routine back to the frame driver's interpreter at its real entry.
+ * `resume_now` is for routines that do work rather than wait: the driver
+ * resumes them at once instead of letting the beam run a line first. */
+static RecompReturn StgHandBack(CpuState *cpu, uint32 entry_pc24,
+                                uint8 frame_size, bool resume_now)
 {
     if (interp_bridge_in_lle_scheduler()) {
+        if (resume_now)
+            GameRequestImmediateResume();
         interp_bridge_set_master_deadline(cpu->master_cycles);
         if (!interp_bridge_lle_master_deadline_reached(cpu))
             interp_bridge_set_master_deadline(GameFrameDeadline());
@@ -52,20 +68,30 @@ static RecompReturn StgFrameWait(CpuState *cpu, uint32 entry_pc24,
 
 RecompReturn HleStgWaitNmiFlag(CpuState *cpu)
 {
-    return StgFrameWait(cpu, 0x0083C9u, 3);
+    return StgHandBack(cpu, 0x0083C9u, 3, false);
 }
 
 RecompReturn HleStgWaitFrames(CpuState *cpu)
 {
-    return StgFrameWait(cpu, 0x009144u, 3);
+    return StgHandBack(cpu, 0x009144u, 3, false);
 }
 
 RecompReturn HleStgWaitFramesOrInput(CpuState *cpu)
 {
-    return StgFrameWait(cpu, 0x009151u, 3);
+    return StgHandBack(cpu, 0x009151u, 3, false);
 }
 
 RecompReturn HleStgWaitVblankPoll(CpuState *cpu)
 {
-    return StgFrameWait(cpu, 0x05A636u, 2);
+    return StgHandBack(cpu, 0x05A636u, 2, false);
+}
+
+RecompReturn HleStgRunTasks(CpuState *cpu)
+{
+    return StgHandBack(cpu, 0x008D2Eu, 2, true);
+}
+
+RecompReturn HleStgTaskYield(CpuState *cpu)
+{
+    return StgHandBack(cpu, 0x008D68u, 2, true);
 }
