@@ -1,0 +1,79 @@
+From c91caf5db56dbf4b5aaaaba85691dd484d3748d9 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 14:28:42 -0400
+Subject: [PATCH] host: Windows rebuild helper sets the pack env itself; keep
+ build exit code
+
+The deferred rebuild script called the toolchain pack's env.bat. A pack
+whose env.bat has LF line endings makes cmd.exe misparse it and end the
+script before configuring, so the launcher exited after generate and the
+next start asked to rebuild again. Set PATH, CC/CXX, SDL3_DIR and ZLIB_ROOT
+as activate_toolchain() does, with one-line ifs instead of blocks.
+
+The build's output was piped to a PowerShell tee, so cmd's errorlevel was
+the tee's and a failed build was reported as success. Run the build inside
+PowerShell and exit with its code.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ host/snesrecomp_codegen_host.c | 37 +++++++++++++++++++++++++++-------
+ 1 file changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/host/snesrecomp_codegen_host.c b/host/snesrecomp_codegen_host.c
+index ace52f8..f1e79b3 100644
+--- a/host/snesrecomp_codegen_host.c
++++ b/host/snesrecomp_codegen_host.c
+@@ -1270,9 +1270,28 @@ static int write_windows_deferred_rebuild_helper(char* err_msg, size_t err_cap)
+             "  ping -n 2 127.0.0.1 >NUL\r\n"
+             "  goto waitloop\r\n"
+             ")\r\n"
+-            /* The pack's env.bat is its own statement of how to use it
+-             * (PATH, CC/CXX, SDL3_DIR); calling it beats a second copy. */
+-            "if exist \"%%PACK%%\\env.bat\" call \"%%PACK%%\\env.bat\"\r\n"
++            /* The pack's environment, as activate_toolchain() sets it for
++             * this process (the helper inherits that as well). Not by
++             * calling the pack's env.bat: one with LF line endings makes
++             * cmd.exe misparse it and end this script before it configures
++             * anything. One-line ifs and a goto rather than ( ) blocks, so a
++             * PATH holding "Program Files (x86)" cannot close a block. */
++            "if \"%%PACK%%\"==\"\" goto nopack\r\n"
++            "set \"PACK=%%PACK:/=\\%%\"\r\n"
++            "set \"PATH=%%PACK%%\\bin;%%PATH%%\"\r\n"
++            "if exist \"%%PACK%%\\python\\python.exe\" "
++            "set \"PATH=%%PACK%%\\python;%%PATH%%\"\r\n"
++            "set \"RETCOMM_TOOLCHAIN_DIR=%%PACK%%\"\r\n"
++            "if exist \"%%PACK%%\\bin\\clang.exe\" "
++            "set \"CC=%%PACK%%\\bin\\clang.exe\"\r\n"
++            "if exist \"%%PACK%%\\bin\\clang++.exe\" "
++            "set \"CXX=%%PACK%%\\bin\\clang++.exe\"\r\n"
++            "if exist \"%%PACK%%\\deps\\lib\\cmake\\SDL3\" "
++            "set \"SDL3_DIR=%%PACK%%\\deps\\lib\\cmake\\SDL3\"\r\n"
++            "if exist \"%%PACK%%\\deps\\include\\zlib.h\" "
++            "set \"ZLIB_ROOT=%%PACK%%\\deps\"\r\n"
++            "set \"PYTHONNOUSERSITE=1\"\r\n"
++            ":nopack\r\n"
+             "cd /d \"%%ROOT%%\"\r\n"
+             /* A setup zip ships no build tree: configure on first rebuild. */
+             "if not exist \"%%BUILD_DIR%%\\CMakeCache.txt\" (\r\n"
+@@ -1294,10 +1313,14 @@ static int write_windows_deferred_rebuild_helper(char* err_msg, size_t err_cap)
+             "echo Building...\r\n"
+             /* The console shows the build live; the log keeps it for a
+              * failure report after the window has gone. */
+-            "\"%%CMAKE%%\" --build \"%%BUILD_DIR%%\" --parallel "
+-            "--target \"%%TARGET%%\" 2>&1 | "
+-            "powershell -NoProfile -Command \"$input | Tee-Object -FilePath "
+-            "'%%BUILD_DIR%%\\snesrecomp_rebuild.log' -Append\"\r\n"
++            /* The build runs inside PowerShell so its exit code survives
++             * the tee: after "cmake | powershell" cmd's errorlevel is the
++             * tee's, and a failed build went on to start the old binary. */
++            "powershell -NoProfile -Command \"& $env:CMAKE --build "
++            "$env:BUILD_DIR --parallel --target $env:TARGET 2>&1 | "
++            "ForEach-Object { [string]$_ } | Tee-Object -FilePath "
++            "(Join-Path $env:BUILD_DIR 'snesrecomp_rebuild.log') -Append; "
++            "exit $LASTEXITCODE\"\r\n"
+             "if errorlevel 1 (\r\n"
+             "  echo.\r\n"
+             "  echo Build failed. Fix the errors above, then rebuild manually.\r\n"
+-- 
+2.50.0.windows.2
+
