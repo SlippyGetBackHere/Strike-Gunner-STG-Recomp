@@ -37,12 +37,15 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "beam_frame_driver.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
 #include "snes/interp_bridge.h"
 #include "snes/ppu.h"
+#include "snes/saveload.h"
 #include "snes/snes.h"
 
 extern CpuState g_cpu;
@@ -187,11 +190,107 @@ void GameSessionReset(void)
     s_wai_halted = false;
 }
 
+/* ── Where the game is, across save states and resets ─────────────────────
+ *
+ * A save state holds the machine, not this driver's resume point, and the
+ * 65816 has no PC register for the snapshot to capture: where the game will
+ * continue lives in s_resume_pc. Without it a loaded state resumed at
+ * whatever address the CPU had before the load, against restored RAM and
+ * stack, and the game fell back to its title screen. The framework's
+ * execution extension (common_rtl.h, RtlSaveExecutionState) carries the
+ * bridge and beam residue the same trip. */
+
+#define STG_STATE_MAGIC 0x53544731u /* 'STG1' */
+
+typedef struct {
+  uint32_t magic;
+  uint32_t resume_pc;
+  uint32_t wai_halted;
+} StgExecState;
+
+static StgExecState s_loaded;
+static bool s_loaded_valid;
+
+static void StgStateSaveExtra(SaveLoadInfo *sli)
+{
+  StgExecState st = { STG_STATE_MAGIC, s_resume_pc, s_wai_halted ? 1u : 0u };
+  sli->func(sli, &st, sizeof(st));
+  RtlSaveExecutionState(sli);
+}
+
+static void StgStateLoadExtra(SaveLoadInfo *sli, uint32_t version)
+{
+  (void)version;
+  s_loaded_valid = false;
+  if (RtlStateBytesRemaining(sli) < sizeof(s_loaded))
+    return;
+  sli->func(sli, &s_loaded, sizeof(s_loaded));
+  if (s_loaded.magic != STG_STATE_MAGIC)
+    return;
+  s_loaded_valid = RtlLoadExecutionState(sli);
+}
+
+static void StgStateLoaded(uint32_t version)
+{
+  (void)version;
+  if (!s_loaded_valid) {
+    /* A state from a build that did not record the resume point: there is
+     * nowhere correct to continue, so boot rather than run from a guess. */
+    fprintf(stderr, "[stg] save state has no resume point; rebooting\n");
+    s_resume_pc = 0;
+    s_wai_halted = false;
+    return;
+  }
+  RtlApplyExecutionState();
+  s_resume_pc = s_loaded.resume_pc;
+  s_wai_halted = s_loaded.wai_halted != 0;
+  s_loaded_valid = false;
+}
+
+/* Rewind snapshots (in memory, this build only). */
+static size_t StgExecStateBound(void) { return sizeof(StgExecState); }
+
+static size_t StgExecStateSave(void *out, size_t capacity)
+{
+  StgExecState st = { STG_STATE_MAGIC, s_resume_pc, s_wai_halted ? 1u : 0u };
+  if (capacity < sizeof(st))
+    return 0;
+  memcpy(out, &st, sizeof(st));
+  return sizeof(st);
+}
+
+static int StgExecStateLoad(const void *in, size_t size)
+{
+  StgExecState st;
+  if (size != sizeof(st))
+    return 0;
+  memcpy(&st, in, sizeof(st));
+  if (st.magic != STG_STATE_MAGIC)
+    return 0;
+  s_resume_pc = st.resume_pc;
+  s_wai_halted = st.wai_halted != 0;
+  return 1;
+}
+
+/* The Reset hotkey: the machine reboots, so must the driver. */
+static void StgHardwareReset(void)
+{
+  s_resume_pc = 0;
+  s_wai_halted = false;
+}
+
 const RtlGameInfo kGameInfo = {
     .title = "strikegunnerstg",
     .initialize = NULL,
     .run_frame = &GameRunOneFrame,
     .draw_ppu_frame = &GameDrawPpuFrame,
     .save_name_prefix = "save",
+    .state_save_extra = &StgStateSaveExtra,
+    .state_load_extra = &StgStateLoadExtra,
+    .on_state_loaded = &StgStateLoaded,
     .session_reset = &GameSessionReset,
+    .hardware_reset = &StgHardwareReset,
+    .exec_state_bound = &StgExecStateBound,
+    .exec_state_save = &StgExecStateSave,
+    .exec_state_load = &StgExecStateLoad,
 };
