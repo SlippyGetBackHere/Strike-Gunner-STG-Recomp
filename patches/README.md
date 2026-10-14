@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus five local commits, one per
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus seven local commits, one per
 patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -45,6 +45,19 @@ and a block whose last instruction is handed to the interpreter (an
 unresolved indirect jump) no longer charges that instruction as well.
 Regenerate after applying.
 
+## snesrecomp-generate-coverage-dir.patch
+
+`generate --coverage-dir <dir>` passes every capture in a directory to the
+emitter as a historical manifest (each validated on its own, so captures
+from different builds combine), and the launcher's Generate & rebuild passes
+`recomp/coverage` when it exists. Without it a player's first run compiles
+none of the coverage-seeded code. `tools/regen.sh` uses the same call.
+
+## snesrecomp-setup-pack-analyzer.patch
+
+The setup-pack packager builds the native analyzer and ships it in the pack,
+so a player's first run does not need Rust. Packaging needs Cargo.
+
 ## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
@@ -56,6 +69,8 @@ In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-cpu-clock-scale.patch
     git -C snesrecomp apply ../patches/snesrecomp-dsp-declick.patch
     git -C snesrecomp apply ../patches/snesrecomp-aot-charge-fixes.patch
+    git -C snesrecomp apply ../patches/snesrecomp-generate-coverage-dir.patch
+    git -C snesrecomp apply ../patches/snesrecomp-setup-pack-analyzer.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.

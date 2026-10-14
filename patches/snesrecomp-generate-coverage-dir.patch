@@ -1,0 +1,193 @@
+From 1bee44f8d54f1e9a4e5920e50f39dd12919b0b46 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 14:07:07 -0400
+Subject: [PATCH] sdk/host: pass a project's coverage captures to generate
+
+generate takes --historical-profile-manifest and --coverage-dir <dir>,
+which passes every *.json then *.jsonl in the directory as a historical
+manifest: each capture is validated on its own instead of merged, so
+captures recorded by different builds of one project can be combined.
+The codegen host passes --coverage-dir recomp/coverage (configurable via
+coverage_dir) when the directory exists, so the launcher's Generate &
+rebuild compiles the same code as the project's own regen script.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ host/snesrecomp_codegen_host.c | 30 ++++++++++++++++++++++----
+ host/snesrecomp_codegen_host.h |  2 ++
+ tools/sdk_generate.py          | 39 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/host/snesrecomp_codegen_host.c b/host/snesrecomp_codegen_host.c
+index 13040e4..ace52f8 100644
+--- a/host/snesrecomp_codegen_host.c
++++ b/host/snesrecomp_codegen_host.c
+@@ -54,6 +54,7 @@ static char g_helper_path[1100];
+ static char g_cfg_dir[256];
+ static char g_out_dir[256];
+ static char g_funcs_h[256];
++static char g_coverage_dir[256];
+ static char g_cmake_target[256];
+ static char g_display[128];
+ static char g_toolchain_root[1100];   /* pack root with bin/cmake, or "" */
+@@ -973,6 +974,16 @@ static void handle_progress_line(const char* line,
+ }
+ 
+ #if defined(_WIN32)
++/* The project's coverage captures, when it has any. They decide which code
++ * is compiled rather than interpreted, so a player's Generate & rebuild must
++ * pass them exactly as the project's own tools/regen.sh does. */
++static int coverage_dir_present(void) {
++    char dir[1400];
++    return g_coverage_dir[0] &&
++           join_path(dir, sizeof(dir), g_project_root, g_coverage_dir) &&
++           path_is_dir(dir);
++}
++
+ static int run_generate_win(const char* rom,
+                             RecompLauncherCPrepareProgressFn on_progress,
+                             void* progress_ctx, char* err_msg, size_t err_cap) {
+@@ -985,20 +996,25 @@ static int run_generate_win(const char* rom,
+     if (g_cfg->expected_sha256 && g_cfg->expected_sha256[0])
+         snprintf(sha_arg, sizeof(sha_arg), " --expected-sha256 %s",
+                  g_cfg->expected_sha256);
++    char cov_arg[300] = "";
++    if (coverage_dir_present())
++        snprintf(cov_arg, sizeof(cov_arg), " --coverage-dir \"%s\"",
++                 g_coverage_dir);
+ 
+     if (g_has_funcs_h) {
+         snprintf(cmdline, sizeof(cmdline),
+                  "\"%s\" \"%s\" generate --project-root \"%s\" --rom \"%s\" "
+-                 "--cfg-dir \"%s\" --out-dir \"%s\" --funcs-h \"%s\"%s%s%s "
++                 "--cfg-dir \"%s\" --out-dir \"%s\" --funcs-h \"%s\"%s%s%s%s "
+                  "--json-progress",
+                  g_python, g_cli_path, g_project_root, rom, g_cfg_dir, g_out_dir,
+-                 g_funcs_h, g_cfg_roots ? " --cfg-roots" : "", crc_arg, sha_arg);
++                 g_funcs_h, g_cfg_roots ? " --cfg-roots" : "", cov_arg, crc_arg,
++                 sha_arg);
+     } else {
+         snprintf(cmdline, sizeof(cmdline),
+                  "\"%s\" \"%s\" generate --project-root \"%s\" --rom \"%s\" "
+-                 "--cfg-dir \"%s\" --out-dir \"%s\"%s%s%s --json-progress",
++                 "--cfg-dir \"%s\" --out-dir \"%s\"%s%s%s%s --json-progress",
+                  g_python, g_cli_path, g_project_root, rom, g_cfg_dir, g_out_dir,
+-                 g_cfg_roots ? " --cfg-roots" : "", crc_arg, sha_arg);
++                 g_cfg_roots ? " --cfg-roots" : "", cov_arg, crc_arg, sha_arg);
+     }
+ 
+     SECURITY_ATTRIBUTES sa;
+@@ -1104,6 +1120,10 @@ static int run_generate_posix(const char* rom,
+     }
+     if (g_cfg_roots)
+         argv[argc++] = "--cfg-roots";
++    if (coverage_dir_present()) {
++        argv[argc++] = "--coverage-dir";
++        argv[argc++] = g_coverage_dir;
++    }
+     if (g_cfg->expected_crc32 && g_cfg->expected_crc32[0]) {
+         argv[argc++] = "--expected-crc32";
+         argv[argc++] = (char*)g_cfg->expected_crc32;
+@@ -1752,6 +1772,8 @@ void snesrecomp_codegen_host_apply(RecompLauncherCGameInfo* gi,
+              cfg_or(cfg->cfg_dir, "recomp"));
+     snprintf(g_out_dir, sizeof(g_out_dir), "%s",
+              cfg_or(cfg->out_dir, "src/gen"));
++    snprintf(g_coverage_dir, sizeof(g_coverage_dir), "%s",
++             cfg_or(cfg->coverage_dir, "recomp/coverage"));
+     /* recomp/funcs.h is a scaffold convention like recomp/ and src/gen/, and
+      * the generated C #includes it -- so a generate that skips --funcs-h
+      * produces a tree that cannot compile ("funcs.h file not found" on the
+diff --git a/host/snesrecomp_codegen_host.h b/host/snesrecomp_codegen_host.h
+index f01d49f..46ff8ad 100644
+--- a/host/snesrecomp_codegen_host.h
++++ b/host/snesrecomp_codegen_host.h
+@@ -31,6 +31,8 @@ typedef struct SnesrecompCodegenHostConfig {
+     const char* out_dir;                /* default: src/gen */
+     const char* funcs_h;                /* default: recomp/funcs.h (NULL = skip sync) */
+     const char* gen_marker_relpath;     /* default: src/gen/dispatch_v2.c */
++    const char* coverage_dir;           /* default: recomp/coverage (passed to
++                                         * generate only when it exists) */
+     const char* build_dir_name;         /* default: build */
+ 
+     /* CMake / binary identity (required for auto-rebuild). */
+diff --git a/tools/sdk_generate.py b/tools/sdk_generate.py
+index e23031d..8abc7cd 100644
+--- a/tools/sdk_generate.py
++++ b/tools/sdk_generate.py
+@@ -63,6 +63,8 @@ def generate(
+     source_roots: Optional[Sequence[pathlib.Path]] = None,
+     profile_manifests: Optional[Sequence[pathlib.Path]] = None,
+     legacy_profile_rom_sha256: Optional[str] = None,
++    historical_profile_manifests: Optional[Sequence[pathlib.Path]] = None,
++    coverage_dir: Optional[pathlib.Path] = None,
+     analysis_backend: str = "native",
+     expected_crc32: Optional[str] = None,
+     expected_sha256: Optional[str] = None,
+@@ -121,6 +123,22 @@ def generate(
+             ["--profile-manifest", str(pathlib.Path(manifest).resolve())])
+     if legacy_profile_rom_sha256:
+         emit_args.extend(["--legacy-profile-rom-sha256", legacy_profile_rom_sha256])
++    # Coverage captures recorded by different builds of the same project.
++    # --profile-manifest merges its inputs and refuses captures from
++    # different builds; the emitter's historical input validates each one on
++    # its own. A project's capture directory (scaffold convention:
++    # recomp/coverage/) passes every *.json then *.jsonl in it this way, so
++    # the launcher's Generate & rebuild compiles what tools/regen.sh does.
++    historical = [pathlib.Path(m) for m in historical_profile_manifests or ()]
++    if coverage_dir is not None:
++        coverage_dir = pathlib.Path(coverage_dir).resolve()
++        if not coverage_dir.is_dir():
++            raise ValueError(f"coverage-dir is not a directory: {coverage_dir}")
++        historical += sorted(coverage_dir.glob("*.json"))
++        historical += sorted(coverage_dir.glob("*.jsonl"))
++    for manifest in historical:
++        emit_args.extend(["--historical-profile-manifest",
++                          str(pathlib.Path(manifest).resolve())])
+ 
+     def run_captured(tool, arguments: Sequence[str]) -> int:
+         """Run a tools.* main(), keeping stdout JSONL-clean when needed."""
+@@ -173,6 +191,7 @@ def generate(
+         "funcs_h": str(funcs_h) if funcs_h is not None else None,
+         "funcs_count": funcs_count,
+         "cfg_roots": bool(cfg_roots),
++        "coverage_captures": len(historical),
+         "analysis_backend": analysis_backend,
+     }
+     reporter.phase("done", pct=1.0, message="Generate complete")
+@@ -238,6 +257,14 @@ def generate_command(args: argparse.Namespace, progress: ProgressReporter) -> in
+                 for m in getattr(args, "profile_manifest", []) or []
+             ],
+             legacy_profile_rom_sha256=getattr(args, "legacy_profile_rom_sha256", None),
++            historical_profile_manifests=[
++                _resolve_under(project_root, m)
++                for m in getattr(args, "historical_profile_manifest", []) or []
++            ],
++            coverage_dir=(
++                _resolve_under(project_root, args.coverage_dir)
++                if getattr(args, "coverage_dir", None) else None
++            ),
+             analysis_backend=args.analysis_backend,
+             expected_crc32=args.expected_crc32,
+             expected_sha256=args.expected_sha256,
+@@ -316,6 +343,18 @@ def add_generate_parser(subparsers) -> None:
+         "--legacy-profile-rom-sha256",
+         help="explicitly associate an unbound v1 profile with this ROM SHA-256",
+     )
++    generate_parser.add_argument(
++        "--historical-profile-manifest",
++        action="append",
++        default=[],
++        help="coverage capture from another build of this project, validated "
++             "on its own rather than merged (repeatable)",
++    )
++    generate_parser.add_argument(
++        "--coverage-dir",
++        help="pass every *.json and *.jsonl capture in this directory as "
++             "--historical-profile-manifest",
++    )
+     generate_parser.add_argument(
+         "--analysis-backend",
+         choices=("auto", "native", "python"),
+-- 
+2.50.0.windows.2
+

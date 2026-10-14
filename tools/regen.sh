@@ -14,7 +14,6 @@
 #                 habit, and SNESRECOMP_ROM sets it once for a shell.
 #   --no-verify   skip the ROM digest check (for a revision this project has
 #                 not been pinned to yet — expect the generated C to differ)
-#   --cfg-roots   seed analysis from every func declaration in recomp/*.cfg
 #   -h|--help     this message
 set -euo pipefail
 
@@ -23,13 +22,11 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 VERIFY=1
-CFG_ROOTS=0
 ROM=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --rom) ROM=$2; shift 2 ;;
     --no-verify) VERIFY=0; shift ;;
-    --cfg-roots) CFG_ROOTS=1; shift ;;
     -h|--help) sed -n '2,/^set -euo/p' "$0" | sed -n '/^# /p' | sed 's/^# //'; exit 0 ;;
     *) echo "regen.sh: unknown flag: $1 (try --help)" >&2; exit 2 ;;
   esac
@@ -70,38 +67,29 @@ ROM=${ROM%$'\r'}  # Windows Python ends lines with CRLF
 VERIFY_ARGS=()
 if [ "$VERIFY" -eq 1 ]; then
   VERIFY_ARGS=(--expected-crc32 "$EXPECTED_CRC32" --expected-sha256 "$EXPECTED_SHA256")
-  echo "== Verifying $ROM =="
-  "$PYTHON" "$CLI" verify-rom --rom "$ROM" "${VERIFY_ARGS[@]}"
 else
   echo "== Skipping ROM verification (--no-verify) =="
 fi
 
-EMIT_ARGS=(--rom "$ROM" --cfg-dir recomp --out-dir src/gen
-           --analysis-backend native)
-if [ "$CFG_ROOTS" -eq 1 ]; then EMIT_ARGS+=(--cfg-roots); fi
+# The same generate the launcher's Generate & rebuild runs on a player's
+# machine (snesrecomp/host/snesrecomp_codegen_host.c), so a developer and a
+# player compile the same code from the same ROM.
+#
 # Coverage captures seed the analyzer with the entry points the interpreter
 # was actually seen reaching (snesrecomp/docs/COVERAGE_FEEDBACK.md). Without
 # them only the vectors are roots and almost nothing is compiled. They hold
-# addresses and hit counts, never ROM data. Add a capture to recomp/coverage/
-# to widen what is compiled; never remove one without re-checking the build.
-#
-# Each capture comes from a different build, and only the emitter's
-# historical input validates captures one at a time instead of refusing to
-# merge them; `snesrecomp_cli.py generate` does not forward it. So the
-# emitter and the funcs.h sync are run directly here, after the CLI has
-# verified the ROM above.
-for profile in recomp/coverage/*.json recomp/coverage/*.jsonl; do
-  [ -f "$profile" ] && EMIT_ARGS+=(--historical-profile-manifest "$profile")
-done
-ANALYZER="$SNESRECOMP_ROOT/recompiler-rs/target/release/snesrecomp-analyze"
-for candidate in "$ANALYZER.exe" "$ANALYZER"; do
-  if [ -f "$candidate" ]; then export SNESRECOMP_NATIVE_ANALYZER="$candidate"; break; fi
-done
+# addresses and hit counts, never ROM data. Each comes from a different build,
+# so --coverage-dir validates them one at a time rather than merging them.
+# Add a capture to recomp/coverage/ to widen what is compiled; never remove
+# one without re-checking the build. --cfg-roots is the launcher's setting
+# and emits the same code here either way.
+GEN_ARGS=(generate --project-root "$ROOT" --rom "$ROM" --cfg-dir recomp
+          --out-dir src/gen --funcs-h recomp/funcs.h --cfg-roots
+          --coverage-dir recomp/coverage)
 
 echo "== Generating src/gen =="
 mkdir -p src/gen
-"$PYTHON" "$SNESRECOMP_ROOT/tools/v2_emit.py" "${EMIT_ARGS[@]}"
-"$PYTHON" "$SNESRECOMP_ROOT/tools/v2_sync_funcs_h.py" --cfg-dir recomp --out recomp/funcs.h
+"$PYTHON" "$CLI" "${GEN_ARGS[@]}" "${VERIFY_ARGS[@]+"${VERIFY_ARGS[@]}"}"
 
 echo
 echo "Done. Build with:"
