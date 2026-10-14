@@ -49,11 +49,18 @@ fi
 
 # The ROM hint and digests come from rom_identity.txt -- the same file the
 # build compiles in and tools/regen.sh verifies against -- so a revision bump
-# is one edit. stage_setup_host.sh already needs python3, so this does too.
+# is one edit. stage_setup_host.sh already needs Python, so this does too.
+# Windows installs it as python, not python3.
+PY="$(command -v python3 || command -v python || true)"
+if [ -z "$PY" ]; then
+  echo "package_release.sh: python3 (or python) not found on PATH" >&2
+  exit 1
+fi
 IDENTITY_TOOL="snesrecomp/tools/rom_identity.py"
-ROM_FILE="$(python3 "$IDENTITY_TOOL" rom_identity.txt --get rom_file)"
-ROM_SHA256="$(python3 "$IDENTITY_TOOL" rom_identity.txt --get expected_sha256)"
-ROM_CRC32="$(python3 "$IDENTITY_TOOL" rom_identity.txt --get expected_crc32)"
+ROM_FILE="$("$PY" "$IDENTITY_TOOL" rom_identity.txt --get rom_file)"
+ROM_SHA256="$("$PY" "$IDENTITY_TOOL" rom_identity.txt --get expected_sha256)"
+ROM_CRC32="$("$PY" "$IDENTITY_TOOL" rom_identity.txt --get expected_crc32)"
+ROM_FILE=${ROM_FILE%$'\r'}; ROM_SHA256=${ROM_SHA256%$'\r'}; ROM_CRC32=${ROM_CRC32%$'\r'}
 
 # mods/ is the catalog the build stages beside the executable, and the package
 # a netplay host transfers to a guest. Add --runtime-dir <name> for any other

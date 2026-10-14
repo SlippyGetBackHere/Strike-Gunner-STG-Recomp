@@ -1,0 +1,28 @@
+From d2847c9585a75fa42cb7d200c1021d703be104f2 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 14:11:54 -0400
+Subject: [PATCH] ci: zip fallback uses the python the stage step found
+
+Windows installs Python as python, not python3.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/ci/stage_setup_host.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/ci/stage_setup_host.sh b/tools/ci/stage_setup_host.sh
+index d3f8421..2ab08fe 100755
+--- a/tools/ci/stage_setup_host.sh
++++ b/tools/ci/stage_setup_host.sh
+@@ -300,7 +300,7 @@ rm -f "${ZIP}"
+   else
+     # Python's zipfile does not keep the executable bit; only reached on a
+     # host with neither zip nor 7z, which the workflow does not use.
+-    python3 - "${NAME}" <<'PY'
++    "${PY}" - "${NAME}" <<'PY'
+ import os, stat, sys, zipfile
+ name = sys.argv[1]
+ with zipfile.ZipFile(name + ".zip", "w", zipfile.ZIP_DEFLATED) as zf:
+-- 
+2.50.0.windows.2
+

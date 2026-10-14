@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus seven local commits, one per
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus eight local commits, one per
 patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -58,6 +58,11 @@ none of the coverage-seeded code. `tools/regen.sh` uses the same call.
 The setup-pack packager builds the native analyzer and ships it in the pack,
 so a player's first run does not need Rust. Packaging needs Cargo.
 
+## snesrecomp-packager-python.patch
+
+The packager's zip fallback calls the Python it already found (`python3` or
+`python`) instead of `python3`, which Windows does not install.
+
 ## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
@@ -71,6 +76,7 @@ In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-aot-charge-fixes.patch
     git -C snesrecomp apply ../patches/snesrecomp-generate-coverage-dir.patch
     git -C snesrecomp apply ../patches/snesrecomp-setup-pack-analyzer.patch
+    git -C snesrecomp apply ../patches/snesrecomp-packager-python.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.
