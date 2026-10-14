@@ -233,6 +233,13 @@ static void StgStateLoadExtra(SaveLoadInfo *sli, uint32_t version)
 static void StgStateLoaded(uint32_t version)
 {
   (void)version;
+  /* The PPU's raster journal (ppu.c) holds the last field's register
+   * baseline, which the renderer restores before drawing. It is not part of
+   * the state, so after a load it still held whatever was on screen before
+   * -- the mode 7 intro, in a fresh launch -- and every frame on which the
+   * game did not rewrite BGMODE/TM itself drew from it: a garbled screen
+   * over correct game state. Re-arm it from the restored registers. */
+  ppu_rasterReset();
   if (!s_loaded_valid) {
     /* A state from a build that did not record the resume point: there is
      * nowhere correct to continue, so boot rather than run from a guess. */
