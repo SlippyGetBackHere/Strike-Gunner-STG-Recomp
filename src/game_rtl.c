@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audio_trace.h"
 #include "beam_frame_driver.h"
 #include "common_rtl.h"
 #include "cpu_state.h"
@@ -175,6 +176,45 @@ static void StgLoadOptions(void)
           level, (unsigned)g_snes_cpu_clock_q8, declick);
 }
 
+/* STG_AUDIOLOG=<file>: once a second, the audio pipeline's counters
+ * (framework audio_trace) and the wall-clock frame rate, to diagnose
+ * dropouts. Inert unless set. */
+static void StgAudioLog(void)
+{
+  static int enabled = -1;
+  static FILE *log;
+  static AudioTraceStats prev;
+  static uint64_t prev_ns, frames;
+  if (enabled < 0) {
+    const char *e = getenv("STG_AUDIOLOG");
+    enabled = e && e[0];
+    if (enabled) log = fopen(e, "w");
+    if (!log) enabled = 0;
+  }
+  if (!enabled || ++frames % 60)
+    return;
+  extern uint64_t snesrecomp_host_now_ns(void);
+  AudioTraceStats st;
+  audio_trace_get_stats(&st);
+  uint64_t now = snesrecomp_host_now_ns();
+  if (prev_ns) {
+    double sec = (double)(now - prev_ns) / 1e9;
+    fprintf(log, "t=%.1f fps=%.3f produced=%llu consumed=%llu occ=%u underflows=%llu missing=%llu priming=%llu dropped=%llu audible_drop=%llu\n",
+            (double)frames / 60.0, 60.0 / sec,
+            (unsigned long long)(st.produced - prev.produced),
+            (unsigned long long)(st.consumed - prev.consumed),
+            (unsigned)st.occupancy_current,
+            (unsigned long long)(st.output_underflows - prev.output_underflows),
+            (unsigned long long)(st.output_missing_frames - prev.output_missing_frames),
+            (unsigned long long)(st.output_priming - prev.output_priming),
+            (unsigned long long)(st.dropped - prev.dropped),
+            (unsigned long long)(st.dropped_audible - prev.dropped_audible));
+    fflush(log);
+  }
+  prev = st;
+  prev_ns = now;
+}
+
 void GameRunOneFrame(void)
 {
   const bool booting = s_resume_pc == 0;
@@ -188,6 +228,7 @@ void GameRunOneFrame(void)
   }
   s_frame_end = frame_end;
 
+  StgAudioLog();
   s_resume_now = false;
   if (booting) {
     static bool s_options_loaded;

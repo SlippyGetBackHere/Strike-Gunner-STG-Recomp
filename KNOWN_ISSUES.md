@@ -18,18 +18,23 @@ noise channel. A low-pass filter over the output and a fade on key-on were
 tried first and rejected: the first dulled the music, the second had no
 effect.
 
-## Audio: short repeating dropouts in long sessions
+## Audio: short repeating dropouts (not reproduced)
 
-**Status:** open, suspected cause not confirmed.
+**Status:** not reproduced 2026-10-14; suspected cause outside the port.
 
 Reported from stage 5 onwards in a full playthrough: a very short mute that
-recurs on a regular interval. That session presented frames at an average
-59.70 per second (earlier sessions: 59.95). The S-DSP produces a fixed number
-of samples per guest frame while the device drains 32,000 per second, so a
-host frame rate below 60 slowly empties the output ring until it underruns
-and refills -- which would sound like exactly this. Next step: measure the
-ring's fill level over a long session. The pacing is the framework's, not
-the game's.
+recurred on a regular interval. That session's default output was likely
+the VB-Audio Virtual Cable, which runs on its own clock and buffer. With the
+cable disabled and a hardware output (SSL 2), a 227-second late-stage session
+logged no dropped samples and no recurring underflows: frame rate 59.96 on
+average, audio produced and consumed balanced to 0.01%, and the only
+underflows were at two save-state loads, which clear the audio buffer by
+design. A 3-minute headless run was equally clean.
+
+If it returns: run with `STG_AUDIOLOG=<file>` set, which logs the audio
+pipeline's counters once a second (underflows, missing frames, buffer level,
+frame rate). Through a virtual cable, `AudioSamples = 1024` in `config.ini`
+(a larger device buffer) is the usual remedy; untested here.
 
 ## Slowdown in busy scenes
 
