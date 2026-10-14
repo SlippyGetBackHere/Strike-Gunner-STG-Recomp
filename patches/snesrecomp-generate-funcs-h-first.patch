@@ -1,0 +1,46 @@
+From ef1cf78dd93f824f69dba11ab7ca1959c9d8ef4c Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 14:15:11 -0400
+Subject: [PATCH] sdk: sync funcs.h before emitting as well as after
+
+The emitter reads host aliases from the funcs.h beside the cfg files, and
+funcs.h is not committed. A fresh tree therefore generated without the
+aliases a regenerated tree had. funcs.h derives from the cfg files alone,
+so syncing it first makes generate independent of what a previous run left.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/sdk_generate.py | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/tools/sdk_generate.py b/tools/sdk_generate.py
+index 8abc7cd..f6c6008 100644
+--- a/tools/sdk_generate.py
++++ b/tools/sdk_generate.py
+@@ -152,6 +152,23 @@ def generate(
+                 reporter.log(line)
+         return code
+ 
++    # The emitter reads host aliases from the funcs.h beside the cfg files,
++    # and funcs.h is derived from those cfg files alone. Sync it before
++    # emitting as well as after, so a fresh tree (no funcs.h yet: it is not
++    # committed) generates what a tree regenerated before does.
++    if funcs_h is not None:
++        reporter.phase(
++            "sync_funcs_h",
++            pct=0.1,
++            message=f"Syncing function declarations to {funcs_h}",
++        )
++        sync_code = run_captured(
++            v2_sync_funcs_h,
++            ["--cfg-dir", str(cfg_dir), "--out", str(funcs_h)],
++        )
++        if sync_code != 0:
++            raise RuntimeError(f"funcs.h sync failed (exit {sync_code})")
++
+     reporter.phase(
+         "emit",
+         pct=0.15,
+-- 
+2.50.0.windows.2
+
