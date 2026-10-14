@@ -60,6 +60,11 @@ static uint32_t s_resume_pc;
 /* The CPU executed WAI and is halted until an interrupt line asserts. */
 static bool s_wai_halted;
 
+/* End of the field being run; frame-wait stubs restore the deadline to it. */
+static uint64_t s_frame_end;
+
+uint64_t GameFrameDeadline(void) { return s_frame_end; }
+
 static uint32_t read_vector(uint32_t addr) {
   uint32_t lo = snes_read(g_snes, addr);
   uint32_t hi = snes_read(g_snes, addr + 1u);
@@ -100,6 +105,7 @@ void GameRunOneFrame(void)
     frame_end = g_snes->beamMasterLast +
                 (to_vblank ? to_vblank : STG_MASTER_CYCLES_PER_FIELD);
   }
+  s_frame_end = frame_end;
 
   if (booting) {
     s_resume_pc = read_vector(0x00FFFCu);

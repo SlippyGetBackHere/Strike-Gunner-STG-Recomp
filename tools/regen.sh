@@ -79,6 +79,14 @@ fi
 GEN_ARGS=(--rom "$ROM" --cfg-dir recomp --out-dir src/gen
           --funcs-h recomp/funcs.h --project-root "$ROOT")
 if [ "$CFG_ROOTS" -eq 1 ]; then GEN_ARGS+=(--cfg-roots); fi
+# Coverage captures seed the analyzer with the entry points the interpreter
+# was actually seen reaching (snesrecomp/docs/COVERAGE_FEEDBACK.md). Without
+# them only the vectors are roots and almost nothing is compiled. They hold
+# addresses and hit counts, never ROM data. Add a capture to recomp/coverage/
+# to widen what is compiled; never remove one without re-checking the build.
+for profile in recomp/coverage/*.json recomp/coverage/*.jsonl; do
+  [ -f "$profile" ] && GEN_ARGS+=(--profile-manifest "$profile")
+done
 if [ "$VERIFY" -eq 1 ]; then GEN_ARGS+=("${VERIFY_ARGS[@]}"); fi
 
 echo "== Generating src/gen =="
