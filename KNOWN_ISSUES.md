@@ -60,7 +60,8 @@ diverge from the reference at the same frame (3,162 of the reference route).
 ## Coverage
 
 Native code is generated from coverage captures in `recomp/coverage/`: the
-intro, attract demo and stage 1, and one full playthrough to the ending.
+intro, attract demo and stage 1, one full playthrough, and a session through
+the ending.
 Code no capture reached runs on the interpreter. A further frame-wait
 routine reached only from compiled code would show up as a brief hitch or
 freeze at a scene change, with an `[interp_cap]` line in the log.
