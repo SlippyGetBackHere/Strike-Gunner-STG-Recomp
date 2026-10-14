@@ -2,7 +2,8 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus one fix.
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus two local commits, one per
+patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
 
@@ -11,13 +12,25 @@ Fixes background mode 2 in the framework's optimized PPU renderer
 and a wrong offset-per-tile lookup. Without it, stage 1 shows no enemies,
 bullets or exhaust, and part of the sidebars is blank.
 
-## Re-applying it
+## snesrecomp-timing.patch
+
+Two timing fixes, checked against snes9x. `snes_set_beam_from_master_clock()`
+makes a `$4212` read sync the beam to the CPU clock instead of adding a
+fixed tick (the frame driver in `src/game_rtl.c` turns it on); without it
+compiled vblank waits halved the game's scene rate. And compiled code is
+charged bus-accurate master clocks (fetches at ROM speed, data at its
+region's speed, internal cycles at 6) instead of 8 per cycle.
+
+The generated C depends on the emitter change: regenerate after applying.
+
+## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
 In either case, from the project root:
 
     git -C snesrecomp checkout <upstream commit>
     git -C snesrecomp apply ../patches/snesrecomp-mode2-renderer.patch
+    git -C snesrecomp apply ../patches/snesrecomp-timing.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
-If upstream has fixed mode 2 by then, delete the patch instead.
+Drop any patch upstream has already absorbed.

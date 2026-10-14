@@ -124,6 +124,13 @@ void GameRunOneFrame(void)
   }
   snes_set_hdma_beam_enabled(g_snes, false);
   snes_set_raster_irq_beam_enabled(true);
+  /* The beam follows the master clock here, so a $4212 read syncs the beam
+   * to the CPU's time rather than adding the static-recomp polling tick on
+   * top of time already charged. With the tick, compiled vblank waits ran
+   * the beam ahead of the CPU and cut the next field short: the game's scene
+   * logic ran at half rate, and busy stages slowed down far more than on the
+   * console. */
+  snes_set_beam_from_master_clock(true);
   ppu_rasterBegin(g_ppu);
 
   if (!booting && g_snes->nmiEnabled)

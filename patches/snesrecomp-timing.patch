@@ -1,0 +1,283 @@
+From c751c9b65f149876474b6dfc27b5ab0e8ae11691 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 03:30:30 -0400
+Subject: [PATCH] timing: beam sync on $4212 for clock-driven hosts;
+ bus-weighted AOT charge
+
+$4212 reads from compiled code added a fixed 64-clock beam tick on top of
+cycles already charged to the master clock. In a beam-aligned frame
+driver that ran the beam ahead of the CPU in vblank wait loops and cut
+the next field short; Strike Gunner's scene logic ran at half rate. Add
+snes_set_beam_from_master_clock(): when set, a $4212 read pays the beam
+up to the CPU's master clock instead. Off by default.
+
+Compiled blocks charged every static CPU cycle at the code region's
+speed. Only fetches run at that speed; data accesses run at their
+region's and internal cycles at 6, as the interpreter already charges.
+Add snes_cycles.instr_bus_terms() and use it for the block charge, and
+charge the runtime one-cycle extras (taken branch, D.l != 0, index page
+cross) as internal cycles.
+
+Checked against snes9x on a 13,500-frame scripted route: the first
+event-timing divergence moved from frame 305 to 3,162, the same as the
+interpreter tier.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ recompiler/snes_cycles.py      | 108 +++++++++++++++++++++++++++++++++
+ recompiler/v2/emit_function.py |  39 +++++++++---
+ runner/src/snes/snes.c         |  15 ++++-
+ runner/src/snes/snes.h         |   5 ++
+ 4 files changed, 158 insertions(+), 9 deletions(-)
+
+diff --git a/recompiler/snes_cycles.py b/recompiler/snes_cycles.py
+index 9bfad44..e9d246e 100644
+--- a/recompiler/snes_cycles.py
++++ b/recompiler/snes_cycles.py
+@@ -585,3 +585,111 @@ def main(argv) -> int:
+ if __name__ == '__main__':
+     import sys
+     sys.exit(main(sys.argv[1:]))
++
++
++# ==============================================================================
++# Bus-weighted master clocks for one statically known instruction
++# ==============================================================================
++#
++# block_static_cycles() counts CPU cycles. Charging every one of them at the
++# code region's speed overstates compiled time: on the 65816 only the opcode
++# and operand fetches run at the code region's speed; data accesses run at the
++# speed of the region they touch (work RAM 8, PPU/CPU I/O 6, joypad 12) and
++# internal cycles at 6. The interpreter tier charges exactly that per access,
++# so a compiled block charged at 8 per cycle ran slower than the same code
++# interpreted -- and slower than the console -- in logic-heavy frames.
++
++_READ_MNEMS = {'LDA', 'LDX', 'LDY', 'ORA', 'AND', 'EOR', 'ADC', 'SBC', 'CMP',
++               'CPX', 'CPY', 'BIT'}
++_STORE_ONLY = {'STA', 'STX', 'STY', 'STZ'}
++_X_WIDTH = {'LDX', 'LDY', 'STX', 'STY', 'CPX', 'CPY'}
++
++
++def _io_speed16(addr: int) -> int:
++    return region_speed(addr & 0xFFFF)
++
++
++def instr_bus_terms(insn):
++    """(code_clocked, other_master) for one instruction's static cycles.
++
++    `code_clocked` counts bus cycles charged at the code region's speed (the
++    opcode/operand fetch, plus pointer reads from the program bank);
++    `other_master` is the master-clock total of every other static cycle.
++    Returns None when the instruction is not modelled, so the caller keeps
++    the per-cycle code-speed charge for it.
++    """
++    from snes65816 import (IMP, ACC, IMM, REL, REL16, DP, DP_X, DP_Y, ABS,
++                           ABS_X, ABS_Y, LONG, LONG_X, INDIR, INDIR_X,
++                           INDIR_Y, INDIR_L, INDIR_LY, INDIR_DPX, DP_INDIR,
++                           STK, STK_IY)
++    op = getattr(insn, 'opcode', None)
++    mnem = getattr(insn, 'mnem', None)
++    mode = getattr(insn, 'mode', None)
++    length = getattr(insn, 'length', None)
++    if op is None or mnem is None or length is None:
++        return None
++    m = getattr(insn, 'm_flag', 1) & 1
++    x = getattr(insn, 'x_flag', 1) & 1
++    total = instr_static_cycles(op, m, x)
++    operand = getattr(insn, 'operand', 0) or 0
++    code = length
++    data = []            # (bytes, speed)
++    w = (1 if x else 2) if mnem in _X_WIDTH else (1 if m else 2)
++
++    if mnem in ('JSR', 'JSL', 'RTS', 'RTL', 'RTI', 'JMP', 'BRK', 'COP'):
++        if mnem == 'JSR':
++            data.append((2, SLOW))
++            if mode == INDIR_X:
++                code += 2
++        elif mnem == 'JSL':
++            data.append((3, SLOW))
++        elif mnem == 'RTS':
++            data.append((2, SLOW))
++        elif mnem == 'RTL':
++            data.append((3, SLOW))
++        elif mnem == 'RTI':
++            data.append((4, SLOW))
++        elif mnem == 'JMP':
++            if op == 0x6C:
++                data.append((2, _io_speed16(operand)))
++            elif op == 0xDC:
++                data.append((3, _io_speed16(operand)))
++            elif op == 0x7C:
++                code += 2
++        else:                                  # BRK / COP
++            data.append((4, SLOW))
++            data.append((2, SLOW))
++    elif mnem in ('PHA', 'PLA', 'PHX', 'PLX', 'PHY', 'PLY'):
++        width = (1 if x else 2) if mnem in ('PHX', 'PLX', 'PHY', 'PLY') else (1 if m else 2)
++        data.append((width, SLOW))
++    elif mnem in ('PHP', 'PLP', 'PHB', 'PLB', 'PHK'):
++        data.append((1, SLOW))
++    elif mnem in ('PHD', 'PLD', 'PEA', 'PER'):
++        data.append((2, SLOW))
++    elif mnem == 'PEI':
++        data.append((4, SLOW))
++    elif mnem in ('MVN', 'MVP'):
++        data.append((2, SLOW))
++    elif mode in (IMP, ACC, IMM, REL, REL16):
++        pass
++    else:
++        is_rmw = mnem in ('ASL', 'LSR', 'ROL', 'ROR', 'INC', 'DEC', 'TSB', 'TRB')
++        if not (is_rmw or mnem in _READ_MNEMS or mnem in _STORE_ONLY):
++            return None
++        nbytes = 2 * w if is_rmw else w
++        if mode in (ABS, ABS_X, ABS_Y):
++            speed = _io_speed16(operand)
++        elif mode in (LONG, LONG_X):
++            speed = region_speed(operand & 0xFFFFFF)
++        else:
++            speed = SLOW                       # direct page / stack: work RAM
++        if mode in (DP_INDIR, INDIR_Y, INDIR_DPX, STK_IY):
++            data.append((2, SLOW))
++        elif mode in (INDIR_L, INDIR_LY):
++            data.append((3, SLOW))
++        data.append((nbytes, speed))
++    nbus = sum(b for b, _ in data)
++    internal = total - code - nbus
++    if internal < 0:
++        return None
++    return code, sum(b * s for b, s in data) + internal * INTERNAL
+diff --git a/recompiler/v2/emit_function.py b/recompiler/v2/emit_function.py
+index e5e264f..ee071a5 100644
+--- a/recompiler/v2/emit_function.py
++++ b/recompiler/v2/emit_function.py
+@@ -82,6 +82,22 @@ def _block_cycle_const(pairs) -> int:
+     return const
+ 
+ 
++def _block_master_terms(pairs):
++    """(code-speed bus cycles, other master clocks) for a block's statics."""
++    from snes_cycles import instr_bus_terms, instr_static_cycles
++    code_n = other = 0
++    for p in pairs:
++        insn = p[0]
++        terms = instr_bus_terms(insn)
++        if terms is None:
++            code_n += instr_static_cycles(insn.opcode, getattr(insn, 'm_flag', 1),
++                                          getattr(insn, 'x_flag', 1))
++        else:
++            code_n += terms[0]
++            other += terms[1]
++    return code_n, other
++
++
+ def _block_speed(bank: int, pc: int):
+     """Code-region cycle weighting, using live PBR for mirrored bodies."""
+     from v2.emitter_helpers import runtime_code_speed
+@@ -109,20 +125,20 @@ def _dynamic_charge_lines(insn, speed_expr: str = "8") -> List[str]:
+     if 'dp' in charges:
+         out.append(
+             f"if (cpu->D & 0xFF) {{ cpu->cycles += 1; "
+-            f"cpu->master_cycles += {speed_expr}; }}  /* D.l != 0 */")
++            f"cpu->master_cycles += 6; }}  /* D.l != 0: internal cycle */")
+     if 'xcross' in charges:
+         mode = getattr(insn, 'mode', None)
+         base = getattr(insn, 'operand', 0) & 0xFFFF
+         if mode == _MODE_ABS_X:
+             out.append(
+                 f"if ((0x{base:04X} & 0xFF00) != ((0x{base:04X} + cpu->X) & 0xFF00))"
+-                f" {{ cpu->cycles += 1; cpu->master_cycles += {speed_expr}; }}"
+-                f"  /* abs,X read page-cross */")
++                f" {{ cpu->cycles += 1; cpu->master_cycles += 6; }}"
++                f"  /* abs,X read page-cross: internal cycle */")
+         elif mode == _MODE_ABS_Y:
+             out.append(
+                 f"if ((0x{base:04X} & 0xFF00) != ((0x{base:04X} + cpu->Y) & 0xFF00))"
+-                f" {{ cpu->cycles += 1; cpu->master_cycles += {speed_expr}; }}"
+-                f"  /* abs,Y read page-cross */")
++                f" {{ cpu->cycles += 1; cpu->master_cycles += 6; }}"
++                f"  /* abs,Y read page-cross: internal cycle */")
+         # INDIR_Y (dp),Y: effective pointer is loaded at runtime from DP — not
+         # reconstructable from the static operand; left as a measured residual.
+     return out
+@@ -1514,7 +1530,7 @@ def emit_function(rom: bytes, bank: int, start: int,
+                         # code runs e=0).
+                         lines.append(
+                             f"if ({pred}) {{ cpu->cycles += 1; "
+-                            f"cpu->master_cycles += {_blk_spd_expr}; {target_stmt} }}")
++                            f"cpu->master_cycles += 6; {target_stmt} }}")
+                     if fall is not None:
+                         lines.append(_goto_or_return(fall, source_pc24=blk_pc24)
+                                      + " /* fall-through */")
+@@ -2157,10 +2173,17 @@ def emit_function(rom: bytes, bank: int, start: int,
+         if _cyc_const:
+             src.append(f'    cpu->cycles += {_cyc_const};')
+             _spd_expr, _spd_const = _block_speed(bank, key.pc)
++            # Bus-weighted: only fetches run at the code region's speed;
++            # data accesses at their region's, internal cycles at 6
++            # (snes_cycles.instr_bus_terms). Unmodelled instructions keep
++            # the per-cycle code-speed charge.
++            _code_n, _other = _block_master_terms(block_per_insn_ir.get(key, []))
+             if _spd_const is not None:
+-                src.append(f'    cpu->master_cycles += {_cyc_const * _spd_const};')
++                src.append(f'    cpu->master_cycles += {_code_n * _spd_const + _other};')
++            elif _other:
++                src.append(f'    cpu->master_cycles += {_code_n} * {_spd_expr} + {_other};')
+             else:
+-                src.append(f'    cpu->master_cycles += {_cyc_const} * {_spd_expr};')
++                src.append(f'    cpu->master_cycles += {_code_n} * {_spd_expr};')
+         for ln in block_lines[key]:
+             # Inject a stack-auditor pop before any return so the shadow
+             # stack stays balanced. An LLE yield unwind is NOT a return: the
+diff --git a/runner/src/snes/snes.c b/runner/src/snes/snes.c
+index 5c03cfe..1e65301 100644
+--- a/runner/src/snes/snes.c
++++ b/runner/src/snes/snes.c
+@@ -69,6 +69,10 @@ void snes_set_hdma_beam_enabled(Snes *snes, bool enabled) {
+ }
+ 
+ static bool s_raster_irq_beam_off;
++static bool s_beam_from_master_clock;
++void snes_set_beam_from_master_clock(bool enabled) {
++  s_beam_from_master_clock = enabled;
++}
+ void snes_set_raster_irq_beam_enabled(bool enabled) {
+   s_raster_irq_beam_off = !enabled;
+ }
+@@ -651,8 +655,17 @@ uint8_t snes_readReg(Snes* snes, uint16_t adr) {
+        * polling tick as well doubles time in $4212 wait loops (SMRPG's boot
+        * fades completed in half the reference frame count). */
+       extern int g_interp_apu_driving;
+-      if (!g_interp_apu_driving)
++      if (s_beam_from_master_clock) {
++        /* Compiled code charges its cycles to the master clock but does not
++         * walk the beam as it goes: pay the beam up to the CPU's time, so
++         * vblank, hblank and the auto-joypad busy bit are where they are on
++         * hardware -- instead of a fixed tick per read on top of time
++         * already charged. */
++        extern CpuState g_cpu;
++        snes_sync_master_clock(snes, g_cpu.master_cycles);
++      } else if (!g_interp_apu_driving) {
+         snes_advance_beam(snes, 64, false);
++      }
+       // Bit 7 = vblank. The real frame loop drives vblank via inNmi, not
+       // inVblank (inVblank is never set true), so on the static-recomp
+       // path bit 7 must be SYNTHESIZED the same way bit 6 is — otherwise a
+diff --git a/runner/src/snes/snes.h b/runner/src/snes/snes.h
+index 013e785..07c8a45 100644
+--- a/runner/src/snes/snes.h
++++ b/runner/src/snes/snes.h
+@@ -160,6 +160,11 @@ void snes_set_hdma_beam_enabled(Snes *snes, bool enabled);
+  * frame, freezing the guest. Default: enabled (the beam latches). Host policy,
+  * not guest state: kept out of the Snes struct and so out of savestates. */
+ void snes_set_raster_irq_beam_enabled(bool enabled);
++/* A host whose beam follows the CPU's master clock sets this. A $4212 read
++ * then first brings the beam up to the CPU's master clock instead of adding
++ * the static-recomp polling tick, which double-counted time in vblank wait
++ * loops already charged to the clock. Off by default. */
++void snes_set_beam_from_master_clock(bool enabled);
+ bool snes_next_irq_master(const Snes *snes, uint64_t now, uint64_t *out);
+ 
+ /* Master clocks from the current beam position to the next programmed H/V IRQ
+-- 
+2.50.0.windows.2
+
