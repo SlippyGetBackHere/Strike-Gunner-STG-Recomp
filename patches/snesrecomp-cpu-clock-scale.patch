@@ -1,0 +1,135 @@
+From 6525de4bf7661aad37966d71fe5e9504d98cb1d0 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 03:51:57 -0400
+Subject: [PATCH] cpu: optional main-CPU clock scale (overclock)
+
+Add g_snes_cpu_clock_q8 (256 = console speed) and SNES_CPU_CLOCKS(),
+and route every 65816 master-clock charge through it: the interpreter's
+per-opcode charge and every charge the emitter writes into compiled
+blocks. The beam, APU, DMA and coprocessors keep real time, so a value
+below 256 makes the CPU faster without changing the frame rate or the
+music. At 256 the charge is unchanged and generated code behaves
+byte-for-byte as before.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ recompiler/v2/codegen.py        |  2 +-
+ recompiler/v2/emit_function.py  | 14 +++++++-------
+ runner/src/cpu_state.c          |  2 ++
+ runner/src/cpu_state.h          |  9 +++++++++
+ runner/src/snes/interp_bridge.c |  2 +-
+ 5 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/recompiler/v2/codegen.py b/recompiler/v2/codegen.py
+index bbb502f..e7e8104 100644
+--- a/recompiler/v2/codegen.py
++++ b/recompiler/v2/codegen.py
+@@ -2696,7 +2696,7 @@ def _emit_blockmove(op: BlockMove) -> List[str]:
+         f"        return interp_bridge_lle_yield_unwind(cpu, {_transfer_target_expr(_CURRENT_SOURCE_PC24, False)});",
+         "      }",
+         "      cpu->cycles += 7;",
+-        f"      cpu->master_cycles += 7 * {speed_expr};",
++        f"      cpu->master_cycles += SNES_CPU_CLOCKS(7 * {speed_expr});",
+         "    }",
+         "  } while (cpu->A != 0xFFFF);",
+         "}",
+diff --git a/recompiler/v2/emit_function.py b/recompiler/v2/emit_function.py
+index ee071a5..9fa84b5 100644
+--- a/recompiler/v2/emit_function.py
++++ b/recompiler/v2/emit_function.py
+@@ -125,19 +125,19 @@ def _dynamic_charge_lines(insn, speed_expr: str = "8") -> List[str]:
+     if 'dp' in charges:
+         out.append(
+             f"if (cpu->D & 0xFF) {{ cpu->cycles += 1; "
+-            f"cpu->master_cycles += 6; }}  /* D.l != 0: internal cycle */")
++            f"cpu->master_cycles += SNES_CPU_CLOCKS(6); }}  /* D.l != 0: internal cycle */")
+     if 'xcross' in charges:
+         mode = getattr(insn, 'mode', None)
+         base = getattr(insn, 'operand', 0) & 0xFFFF
+         if mode == _MODE_ABS_X:
+             out.append(
+                 f"if ((0x{base:04X} & 0xFF00) != ((0x{base:04X} + cpu->X) & 0xFF00))"
+-                f" {{ cpu->cycles += 1; cpu->master_cycles += 6; }}"
++                f" {{ cpu->cycles += 1; cpu->master_cycles += SNES_CPU_CLOCKS(6); }}"
+                 f"  /* abs,X read page-cross: internal cycle */")
+         elif mode == _MODE_ABS_Y:
+             out.append(
+                 f"if ((0x{base:04X} & 0xFF00) != ((0x{base:04X} + cpu->Y) & 0xFF00))"
+-                f" {{ cpu->cycles += 1; cpu->master_cycles += 6; }}"
++                f" {{ cpu->cycles += 1; cpu->master_cycles += SNES_CPU_CLOCKS(6); }}"
+                 f"  /* abs,Y read page-cross: internal cycle */")
+         # INDIR_Y (dp),Y: effective pointer is loaded at runtime from DP — not
+         # reconstructable from the static operand; left as a measured residual.
+@@ -1530,7 +1530,7 @@ def emit_function(rom: bytes, bank: int, start: int,
+                         # code runs e=0).
+                         lines.append(
+                             f"if ({pred}) {{ cpu->cycles += 1; "
+-                            f"cpu->master_cycles += 6; {target_stmt} }}")
++                            f"cpu->master_cycles += SNES_CPU_CLOCKS(6); {target_stmt} }}")
+                     if fall is not None:
+                         lines.append(_goto_or_return(fall, source_pc24=blk_pc24)
+                                      + " /* fall-through */")
+@@ -2179,11 +2179,11 @@ def emit_function(rom: bytes, bank: int, start: int,
+             # the per-cycle code-speed charge.
+             _code_n, _other = _block_master_terms(block_per_insn_ir.get(key, []))
+             if _spd_const is not None:
+-                src.append(f'    cpu->master_cycles += {_code_n * _spd_const + _other};')
++                src.append(f'    cpu->master_cycles += SNES_CPU_CLOCKS({_code_n * _spd_const + _other});')
+             elif _other:
+-                src.append(f'    cpu->master_cycles += {_code_n} * {_spd_expr} + {_other};')
++                src.append(f'    cpu->master_cycles += SNES_CPU_CLOCKS({_code_n} * {_spd_expr} + {_other});')
+             else:
+-                src.append(f'    cpu->master_cycles += {_code_n} * {_spd_expr};')
++                src.append(f'    cpu->master_cycles += SNES_CPU_CLOCKS({_code_n} * {_spd_expr});')
+         for ln in block_lines[key]:
+             # Inject a stack-auditor pop before any return so the shadow
+             # stack stays balanced. An LLE yield unwind is NOT a return: the
+diff --git a/runner/src/cpu_state.c b/runner/src/cpu_state.c
+index 57fe6bc..c35247f 100644
+--- a/runner/src/cpu_state.c
++++ b/runner/src/cpu_state.c
+@@ -351,6 +351,8 @@ static inline void cpu_pace_cycles_word(uint16 addr) {
+  * (interp_bridge.c bridge_region_speed) and the AOT paced accessors below
+  * share this single C implementation so both tiers price transfers
+  * identically. */
++uint32 g_snes_cpu_clock_q8 = 256u;
++
+ uint32_t cpu_region_speed(uint32_t adr) {
+     uint8_t bank = (uint8_t)(adr >> 16);
+     uint16_t a = (uint16_t)adr;
+diff --git a/runner/src/cpu_state.h b/runner/src/cpu_state.h
+index f9b1e26..3efbe05 100644
+--- a/runner/src/cpu_state.h
++++ b/runner/src/cpu_state.h
+@@ -757,6 +757,15 @@ RecompReturn interp_tier_dispatch_bank_miss(CpuState *cpu, uint32 addr_pc24,
+  * decay it into a value mistaken for a local NLR before the (bounded ≪ 2^30)
+  * host stack unwinds. */
+ #define RECOMP_RETURN_LLE_UNWIND_BASE 0x40000000
++
++/* Main-CPU clock scale, in 1/256ths of a master clock per charged clock:
++ * 256 (the default) is the console's speed. A lower value makes every
++ * 65816 instruction, compiled or interpreted, cost fewer master clocks while
++ * the beam, APU, DMA and coprocessors keep real time -- an overclock, which
++ * a title can offer to reduce in-game slowdown. Every CPU charge goes
++ * through SNES_CPU_CLOCKS; at 256 it is the unscaled value. */
++extern uint32 g_snes_cpu_clock_q8;
++#define SNES_CPU_CLOCKS(n)   (g_snes_cpu_clock_q8 == 256u ? (uint64)(n)                                : (((uint64)(n) * g_snes_cpu_clock_q8) >> 8))
+ int interp_bridge_in_lle_scheduler(void);
+ int interp_bridge_lle_master_deadline_reached(const CpuState *cpu);
+ RecompReturn interp_bridge_lle_yield_unwind(CpuState *cpu, uint32 resume_pc24);
+diff --git a/runner/src/snes/interp_bridge.c b/runner/src/snes/interp_bridge.c
+index c1e48eb..9ef71f4 100644
+--- a/runner/src/snes/interp_bridge.c
++++ b/runner/src/snes/interp_bridge.c
+@@ -2471,7 +2471,7 @@ static int _interp_run_core(CpuState *cpu, uint32_t entry_pc24,
+         {
+             unsigned _internal = (unsigned)_cyc > s_interp_bus_cycles
+                                ? (unsigned)_cyc - s_interp_bus_cycles : 0;
+-            uint64_t _master = s_interp_bus_master + (uint64_t)_internal * 6u;
++            uint64_t _master = SNES_CPU_CLOCKS(s_interp_bus_master + (uint64_t)_internal * 6u);
+             g_interp_bridge_steps++;
+             cpu->cycles        += (uint64_t)_cyc;
+             cpu->master_cycles += _master;
+-- 
+2.50.0.windows.2
+

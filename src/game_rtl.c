@@ -102,6 +102,49 @@ static void take_interrupt(uint32_t vector) {
   s_wai_halted = false;
 }
 
+/* ── Reduce slowdown (strikegunner.ini) ────────────────────────────────────
+ *
+ * The game slows down where its logic needs more than a frame of 65816 time;
+ * the port matches the console there (measured against snes9x). This option
+ * runs the 65816 faster -- every instruction costs fewer master clocks
+ * (g_snes_cpu_clock_q8) -- while the beam, sound CPU and DMA keep real time.
+ * Frames that already fit are unchanged: the game just waits longer for
+ * vblank. The file lives beside the executable because the host rewrites
+ * config.ini from the settings it knows. */
+static const char kStgOptionsFile[] = "strikegunner.ini";
+
+static void StgLoadOptions(void)
+{
+  static const uint32_t kClockQ8[] = { 256u, 128u, 85u, 64u };
+  int level = 0;
+  FILE *f = fopen(kStgOptionsFile, "r");
+  if (!f) {
+    f = fopen(kStgOptionsFile, "w");
+    if (f) {
+      fputs("[Game]\n"
+            "# Reduce in-game slowdown by running the SNES CPU faster.\n"
+            "# 0 = authentic console speed (default)\n"
+            "# 1 = 2x CPU, 2 = 3x CPU, 3 = 4x CPU\n"
+            "# Only frames where the game would slow down change; restart to apply.\n"
+            "ReduceSlowdown = 0\n", f);
+      fclose(f);
+    }
+  } else {
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+      int v;
+      if (sscanf(line, " ReduceSlowdown = %d", &v) == 1)
+        level = v;
+    }
+    fclose(f);
+  }
+  if (level < 0) level = 0;
+  if (level > 3) level = 3;
+  g_snes_cpu_clock_q8 = kClockQ8[level];
+  fprintf(stderr, "[stg] ReduceSlowdown = %d (CPU clock %u/256)\n", level,
+          (unsigned)g_snes_cpu_clock_q8);
+}
+
 void GameRunOneFrame(void)
 {
   const bool booting = s_resume_pc == 0;
@@ -117,6 +160,11 @@ void GameRunOneFrame(void)
 
   s_resume_now = false;
   if (booting) {
+    static bool s_options_loaded;
+    if (!s_options_loaded) {
+      s_options_loaded = true;
+      StgLoadOptions();
+    }
     s_resume_pc = read_vector(0x00FFFCu);
   } else {
     ppu_checkOverscan(g_ppu);

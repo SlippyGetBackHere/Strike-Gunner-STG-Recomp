@@ -11,7 +11,7 @@ void GameSessionReset(void);
 /* Master clock at which the field being run ends (0 outside a frame). */
 uint64_t GameFrameDeadline(void);
 
-/* A frame-wait stub handed back work, not a wait: resume without parking. */
+/* A stub handed a routine back to the driver: resume it without parking. */
 void GameRequestImmediateResume(void);
 
 extern const RtlGameInfo kGameInfo;

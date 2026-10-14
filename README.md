@@ -70,6 +70,20 @@ Either way the ROM is checked against the digests above before anything boots
 — a dump that could not have produced this build is refused at the door rather
 than mis-executing ten frames in.
 
+## Options
+
+`strikegunner.ini` beside the executable (created on first launch):
+
+| Key | Values |
+|---|---|
+| `ReduceSlowdown` | `0` authentic console speed (default); `1`, `2`, `3` run the SNES CPU 2x, 3x, 4x faster |
+
+The game slows down where its logic needs more than a frame; at `1` the
+heaviest scene measured (stage 4, ocean section, extra fighters out) holds
+60 fps. Frames that already fit are unchanged, so game speed and music stay
+authentic. Restart to apply. It is a separate file because the host rewrites
+`config.ini` from the settings it knows.
+
 ## Layout
 
 | Path | What lives there |

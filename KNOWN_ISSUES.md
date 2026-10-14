@@ -2,7 +2,9 @@
 
 ## Audio: occasional pops
 
-**Status:** open, parked 2026-10-13.
+**Status:** open, parked 2026-10-13. More noticeable in stage 4's heaviest
+section with `ReduceSlowdown = 1` (reported 2026-10-14), plausibly because
+the scene then runs at full speed and triggers more sound effects.
 
 Short pops or crackles at irregular moments during play. First noticed in
 stage 2 with Spray Missiles, but they also occur with the default weapon and
@@ -47,11 +49,17 @@ the game's.
 
 ## Slowdown in busy scenes
 
-Stage 4 in particular slows almost to slow motion with many enemies and
-shots on screen. The game slows down on real hardware too, because its
-logic overruns a frame; this port times the 65816 to match. Whether it
-slows more than the console does is unknown, and is tied to the timing
-difference below.
+The game slows down on real hardware where its logic overruns a frame. Two
+port bugs made it far worse (compiled vblank waits halving the scene rate,
+compiled code charged 8 clocks per cycle); both are fixed. Measured against
+snes9x from a save in stage 4's heaviest section (one minute, same input):
+the reference finishes 3,536 of 3,600 frames on time, the port 3,516. The
+remaining gap is compiled-mode only (the interpreter tier gets 3,532) and
+not yet explained.
+
+`ReduceSlowdown` in `strikegunner.ini` removes the slowdown: at `1` that
+section runs 3,600 of 3,600 frames on time. Anything the game times by
+counting CPU instructions rather than vblanks runs faster with it on.
 
 ## Timing differs from the interpreted build
 

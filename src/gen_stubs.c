@@ -48,14 +48,15 @@
  * reset the game instead of showing the credits.
  */
 /* Hand a routine back to the frame driver's interpreter at its real entry.
- * `resume_now` is for routines that do work rather than wait: the driver
- * resumes them at once instead of letting the beam run a line first. */
+ * The driver resumes it at once: a wait whose condition is unmet parks in
+ * the interpreter like any other poll, and one already satisfied -- the norm
+ * in a slowdown frame -- passes straight through as on hardware. Letting the
+ * beam run a line first instead cost compiled code frames in busy scenes. */
 static RecompReturn StgHandBack(CpuState *cpu, uint32 entry_pc24,
-                                uint8 frame_size, bool resume_now)
+                                uint8 frame_size)
 {
     if (interp_bridge_in_lle_scheduler()) {
-        if (resume_now)
-            GameRequestImmediateResume();
+        GameRequestImmediateResume();
         interp_bridge_set_master_deadline(cpu->master_cycles);
         if (!interp_bridge_lle_master_deadline_reached(cpu))
             interp_bridge_set_master_deadline(GameFrameDeadline());
@@ -68,30 +69,30 @@ static RecompReturn StgHandBack(CpuState *cpu, uint32 entry_pc24,
 
 RecompReturn HleStgWaitNmiFlag(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x0083C9u, 3, false);
+    return StgHandBack(cpu, 0x0083C9u, 3);
 }
 
 RecompReturn HleStgWaitFrames(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x009144u, 3, false);
+    return StgHandBack(cpu, 0x009144u, 3);
 }
 
 RecompReturn HleStgWaitFramesOrInput(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x009151u, 3, false);
+    return StgHandBack(cpu, 0x009151u, 3);
 }
 
 RecompReturn HleStgWaitVblankPoll(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x05A636u, 2, false);
+    return StgHandBack(cpu, 0x05A636u, 2);
 }
 
 RecompReturn HleStgRunTasks(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x008D2Eu, 2, true);
+    return StgHandBack(cpu, 0x008D2Eu, 2);
 }
 
 RecompReturn HleStgTaskYield(CpuState *cpu)
 {
-    return StgHandBack(cpu, 0x008D68u, 2, true);
+    return StgHandBack(cpu, 0x008D68u, 2);
 }
