@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus four local commits, one per
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus five local commits, one per
 patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -37,6 +37,14 @@ its charges in `SNES_CPU_CLOCKS()`.
 of wrapping. The game's "AudioDeclick" option (`strikegunner.ini`) sets it;
 off, the output is hardware-exact.
 
+## snesrecomp-aot-charge-fixes.patch
+
+Two compiled-code charging fixes in the emitter: block moves (MVN/MVP) are
+charged per byte as the interpreter charges them (52 master clocks, not 56),
+and a block whose last instruction is handed to the interpreter (an
+unresolved indirect jump) no longer charges that instruction as well.
+Regenerate after applying.
+
 ## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
@@ -47,6 +55,7 @@ In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-timing.patch
     git -C snesrecomp apply ../patches/snesrecomp-cpu-clock-scale.patch
     git -C snesrecomp apply ../patches/snesrecomp-dsp-declick.patch
+    git -C snesrecomp apply ../patches/snesrecomp-aot-charge-fixes.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.

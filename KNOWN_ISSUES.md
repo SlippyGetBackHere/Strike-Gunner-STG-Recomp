@@ -42,9 +42,10 @@ The game slows down on real hardware where its logic overruns a frame. Two
 port bugs made it far worse (compiled vblank waits halving the scene rate,
 compiled code charged 8 clocks per cycle); both are fixed. Measured against
 snes9x from a save in stage 4's heaviest section (one minute, same input):
-the reference finishes 3,536 of 3,600 frames on time, the port 3,516. The
-remaining gap is compiled-mode only (the interpreter tier gets 3,532) and
-not yet explained.
+the reference finishes 3,536 of 3,600 frames on time, and so does the port
+since two further compiled-code charging fixes (block moves overcharged per
+byte; jumps handed to the interpreter charged twice). Resolved: the port's
+slowdown at console speed matches the reference.
 
 `ReduceSlowdown` in `strikegunner.ini` removes the slowdown: at `1` that
 section runs 3,600 of 3,600 frames on time. Anything the game times by
