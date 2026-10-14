@@ -1,0 +1,47 @@
+diff --git a/runner/src/snes/ppu.c b/runner/src/snes/ppu.c
+index 25dcfe0..f60f113 100644
+--- a/runner/src/snes/ppu.c
++++ b/runner/src/snes/ppu.c
+@@ -1445,7 +1445,7 @@ static void PpuDrawBackground_4bpp_opt(Ppu *ppu, uint y, bool sub, uint layer,
+   const unsigned hscroll = ppu->hScroll[layer];
+   const unsigned vscroll = ppu->vScroll[layer];
+   const unsigned opt_hscroll = ppu->hScroll[2];
+-  const unsigned opt_vscroll = ppu->vScroll[2] - 1u;
++  const unsigned opt_vscroll = ppu->vScroll[2];
+   const int opt_hrow = (opt_vscroll & opt_coord_mask) >> opt_shift;
+   const int opt_vrow = ((opt_vscroll + 8) & opt_coord_mask) >> opt_shift;
+   const uint16 enable = (uint16)(0x2000u << layer);
+@@ -1469,15 +1469,18 @@ static void PpuDrawBackground_4bpp_opt(Ppu *ppu, uint y, bool sub, uint layer,
+       if (source_screen_x < 8 - (int)(hscroll & 7)) {
+         /* The SNES cannot apply OPT to the leftmost source-tile column. */
+       } else {
++        /* The offset column is the BG's own tile column, one to the left:
++         * BG3's fine scroll does not move it, the BG's does. */
+         const unsigned opt_pos =
+-            (opt_hscroll + (unsigned)source_screen_x - 1) & opt_coord_mask;
++            ((opt_hscroll & ~7u) + (unsigned)source_screen_x +
++             (hscroll & 7) - 8) & opt_coord_mask;
+         const int opt_x = opt_pos >> opt_shift;
+         const uint16 hcell = PpuReadTilemapEntry(ppu, 2, opt_x, opt_hrow);
+         const uint16 vcell = PpuReadTilemapEntry(ppu, 2, opt_x, opt_vrow);
+         if (hcell & enable)
+           hoffset = (hcell & ~7) | (hscroll & 7);
+         if (vcell & enable)
+-          voffset = (uint16)(vcell + 1);
++          voffset = vcell;
+       }
+ 
+       const unsigned sx =
+@@ -2319,8 +2322,10 @@ static void PpuDrawBackgrounds(Ppu *ppu, int y, bool sub) {
+   } else if (PPU_mode(ppu) == 2) {
+     if (ppu->lineHasSprites)
+       PpuDrawSprites(ppu, y, sub, true);
+-    PpuDrawBackground_4bpp_opt(ppu, y, sub, 0, 0xc000, 0x8000);
+-    PpuDrawBackground_4bpp_opt(ppu, y, sub, 1, 0xb100, 0x7100);
++    /* Modes 2-7 interleave OBJ with the two BGs differently from mode 1:
++     * OBJ3, BG1.1, OBJ2, BG2.1, OBJ1, BG1.0, OBJ0, BG2.0. */
++    PpuDrawBackground_4bpp_opt(ppu, y, sub, 0, 0xc000, 0x5000);
++    PpuDrawBackground_4bpp_opt(ppu, y, sub, 1, 0x9100, 0x1100);
+   } else if (PPU_mode(ppu) == 3) {
+     if (ppu->lineHasSprites) { PPU_T0; PpuDrawSprites(ppu, y, sub, true); PPU_ACC(g_ppu_sec_spr_ms); }
+     PpuDrawBackground_8bpp(ppu, y, sub, 0, 0xc000, 0x8000);
