@@ -47,6 +47,23 @@ if [ ! -f "$IMPL" ]; then
   exit 1
 fi
 
+# Bring the setup host up to date before staging it. The stager copies
+# whatever executable the build directory holds, so a build that failed
+# (or was never rerun after a pull) shipped the previous setup program
+# with no warning. A clean build is a no-op here.
+if [ ! -f "$BUILD_DIR/CMakeCache.txt" ]; then
+  echo "package_release.sh: $BUILD_DIR is not configured. Configure the setup host first:" >&2
+  echo "  cmake -S . -B $BUILD_DIR -G Ninja -DCMAKE_BUILD_TYPE=Release -DSNESRECOMP_SETUP_HOST=ON" >&2
+  exit 1
+fi
+if ! cmake --build "$BUILD_DIR"; then
+  echo "package_release.sh: building the setup host in $BUILD_DIR failed; nothing was packaged." >&2
+  echo "  A setup host must be built from a tree with no generated code: src/gen/*.c" >&2
+  echo "  and recomp/funcs.h must not exist (they appear if the launcher's Generate" >&2
+  echo "  & rebuild is run inside this checkout)." >&2
+  exit 1
+fi
+
 # The ROM hint and digests come from rom_identity.txt -- the same file the
 # build compiles in and tools/regen.sh verifies against -- so a revision bump
 # is one edit. stage_setup_host.sh already needs Python, so this does too.
