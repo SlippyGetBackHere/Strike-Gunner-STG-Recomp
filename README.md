@@ -13,11 +13,16 @@ analysis has reached.
 > this project, in the repository or in any release. The recompiled C is
 > generated locally from your own copy and is never committed.
 
+**Playing a test build?** See [`PLAYING.md`](PLAYING.md): setup, controls,
+options and how to report a problem. The rest of this file is for building
+and developing the port.
+
 ## Status
 
 **Playable from start to finish** (as of 2026-10-14): intro, attract demo,
 all stages, and the ending through the credits to "The End", in single-player
-play on Windows.
+play on Windows. Two-player play starts and both ships answer their own
+controller (headless check); a full 2P playthrough has not been done.
 
 - **Accuracy.** Checked against snes9x with identical scripted input: game
   events land on the same frames for the first 3,162 frames of a
@@ -33,8 +38,16 @@ play on Windows.
   (`recomp/coverage/`). Uncovered code runs on the interpreter.
 - **Save states** keep the frame driver's resume point, so a state resumes
   exactly where it was made (checked by saving, playing on, and reloading:
-  identical memory and picture). Rewind uses the same hooks but has not been
-  tested separately.
+  identical memory and picture). Rewind uses the same hooks. The save-state
+  browser and the rewind panel open and close from a controller without
+  disturbing the game (the framework's pad self-test: every scene dump
+  identical to a run without it); committing a rewind has not been tested
+  by hand yet.
+- **Setup packs.** `scripts/package_release.sh` builds a setup pack that
+  generates and builds the game on the player's PC from their ROM, with no
+  Rust or other tools beyond what the launcher downloads. Checked on
+  Windows from a fresh unzip: the code it generates matches a developer
+  regeneration, and the game played through stage 1.
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 
@@ -162,7 +175,9 @@ settings it knows.
 
 ## Multiplayer
 
-Single player.
+Two players at once on one PC: **2P START** on the title screen, one
+controller each (or rebind `[player2]` in `keybinds.ini`). Netplay is not
+built into this target.
 
 ## License
 
