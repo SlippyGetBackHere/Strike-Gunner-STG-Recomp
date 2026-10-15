@@ -52,7 +52,13 @@ static const SnesDesktopHostGame kGameHost = {
     .game_id             = SNESRECOMP_ROM_GAME_ID,
     .build_version       = SNES_GAME_VERSION,
     .game_info           = &kGameInfo,
-    .num_players         = 1,
+    .num_players         = 2,   /* 2P START: simultaneous co-op */
+    /* Rewind rows in the launcher, and a ring of quarter-second steps
+     * reaching 25 seconds back (100 snapshots of ~290 KB, about 29 MB).
+     * The framework's 0.1-second steps were too fine to be useful here. */
+    .rewind_settings         = 1,
+    .rewind_default_depth    = 100,
+    .rewind_default_interval = 15,
     /* Battery-backed SRAM shows the launcher's SAVES panel. Leave NULL for a
      * title without one. The path is exe-relative. */
     .sram_path           = "saves/save.srm",

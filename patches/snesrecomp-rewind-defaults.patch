@@ -1,0 +1,98 @@
+From 74a11844a53964404c72480e17508f371fae3a13 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 19:26:28 -0400
+Subject: [PATCH] host: per-title rewind ring defaults
+
+SnesDesktopHostGame.rewind_default_depth / rewind_default_interval set the
+ring a fresh install starts with (config.ini [Rewind] still wins), through
+ConfigUseRewindDefaults() before parsing. Zero keeps 60 snapshots every 6
+frames.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ runner/src/desktop/config.h     |  3 +++
+ runner/src/desktop/host_main.c  |  2 ++
+ runner/src/desktop/host_main.h  |  8 ++++++++
+ runner/src/desktop/mmx_config.c | 13 +++++++++++--
+ 4 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/runner/src/desktop/config.h b/runner/src/desktop/config.h
+index af56ff1..fb90e54 100644
+--- a/runner/src/desktop/config.h
++++ b/runner/src/desktop/config.h
+@@ -196,6 +196,9 @@ extern Config g_config;
+ void ConfigUseStateMenuDefaults(void);
+ /* Opt in before parsing: binds [KeyMap] OpenLauncher to Ctrl+L by default. */
+ void ConfigUseInGameLauncherDefaults(void);
++/* Rewind ring defaults (snapshots, frames between them) for a config.ini
++ * without [Rewind] values; <= 0 keeps the framework's. Call before parsing. */
++void ConfigUseRewindDefaults(int depth, int interval);
+ void ParseConfigFile(const char *filename);
+ // Re-apply only the [KeyMap] section (launcher hotkey editor wrote it after
+ // the initial parse). Keyboard command map is rebuilt; gamepad map and all
+diff --git a/runner/src/desktop/host_main.c b/runner/src/desktop/host_main.c
+index 74e880f..e6cf1f3 100644
+--- a/runner/src/desktop/host_main.c
++++ b/runner/src/desktop/host_main.c
+@@ -3098,6 +3098,8 @@ int snesrecomp_desktop_main(const SnesDesktopHostGame *game, int argc, char **ar
+   }
+   if (game->state_menu_hotkeys) ConfigUseStateMenuDefaults();
+   if (game->in_game_launcher) ConfigUseInGameLauncherDefaults();
++  ConfigUseRewindDefaults(game->rewind_default_depth,
++                          game->rewind_default_interval);
+   ParseConfigFile(config_file);
+   g_active_config_file = config_file;
+   /* Local overrides (gitignored). Last parser to set a key wins. */
+diff --git a/runner/src/desktop/host_main.h b/runner/src/desktop/host_main.h
+index 03b6f06..b47e386 100644
+--- a/runner/src/desktop/host_main.h
++++ b/runner/src/desktop/host_main.h
+@@ -178,6 +178,14 @@ typedef struct SnesDesktopHostGame {
+    * holds whole-machine snapshots, so a port that wants it off out of the box
+    * ships `[Rewind] Enabled = 0` in default_config_ini. */
+   int rewind_settings;
++  /* The rewind ring a fresh install starts with: snapshots kept, and frames
++   * between them (60 frames = one second). Zero keeps the framework's 60
++   * snapshots every 6 frames. A config.ini [Rewind] value still wins, so a
++   * player's launcher choice sticks. The launcher's rows offer depths 50,
++   * 100, 150, 200 and intervals 1, 4, 8, 12, 15, 30; pick from those so the
++   * rows show the value in effect. */
++  int rewind_default_depth;
++  int rewind_default_interval;
+   /* Opt in to reopening the launcher mid-game: [KeyMap] OpenLauncher
+    * (default Ctrl+L) or [Controller] LauncherGesture (default Select+L3)
+    * freezes the guest and opens the full launcher over it. Settings that can
+diff --git a/runner/src/desktop/mmx_config.c b/runner/src/desktop/mmx_config.c
+index 3757ebf..728e932 100644
+--- a/runner/src/desktop/mmx_config.c
++++ b/runner/src/desktop/mmx_config.c
+@@ -86,6 +86,15 @@ void ConfigUseStateMenuDefaults(void) {
+ void ConfigUseInGameLauncherDefaults(void) {
+   kDefaultKbdControls[kKeys_OpenLauncher] = C(SDLK_l);
+ }
++/* A title's own rewind ring for an install whose config.ini has no [Rewind]
++ * values yet (SnesDesktopHostGame.rewind_default_depth / _interval). Opt in
++ * before parsing; zero keeps the framework's ring. */
++static int s_rewind_default_depth = 60;
++static int s_rewind_default_interval = 6;
++void ConfigUseRewindDefaults(int depth, int interval) {
++  if (depth > 0) s_rewind_default_depth = depth;
++  if (interval > 0) s_rewind_default_interval = interval;
++}
+ #undef _
+ #undef A
+ #undef C
+@@ -679,8 +688,8 @@ void ParseConfigFile(const char *filename) {
+   /* Rewind's built-in ring, matching snes_rewind.c's own defaults so a host
+    * that opts into the launcher rows starts from what it already had. */
+   g_config.rewind_enabled = true;
+-  g_config.rewind_depth = 60;
+-  g_config.rewind_interval = 6;
++  g_config.rewind_depth = s_rewind_default_depth;
++  g_config.rewind_interval = s_rewind_default_interval;
+   /* Default ON to preserve current behaviour across other ports that
+    * share this framework code; per-game .ini sets it false where the
+    * oracle is incompatible with the repro workflow. See config.h doc. */
+-- 
+2.50.0.windows.2
+

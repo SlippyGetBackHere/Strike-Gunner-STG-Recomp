@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus ten local commits, one per
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus eleven local commits, one per
 patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -78,6 +78,12 @@ made `cmd` stop the script before it built anything: the launcher closed
 after generating and asked to rebuild again on the next start. It also
 reports a failed build as a failure instead of starting the old binary.
 
+## snesrecomp-rewind-defaults.patch
+
+Two optional host fields, `rewind_default_depth` and
+`rewind_default_interval`, set the rewind ring a fresh install starts with.
+`src/main.c` uses them for quarter-second steps reaching 25 seconds back.
+
 ## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
@@ -94,6 +100,7 @@ In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-packager-python.patch
     git -C snesrecomp apply ../patches/snesrecomp-generate-funcs-h-first.patch
     git -C snesrecomp apply ../patches/snesrecomp-rebuild-helper-env.patch
+    git -C snesrecomp apply ../patches/snesrecomp-rewind-defaults.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.

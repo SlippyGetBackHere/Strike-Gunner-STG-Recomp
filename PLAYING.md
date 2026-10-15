@@ -80,6 +80,10 @@ Keyboard shortcuts:
 On a controller, Select+R opens the save-state browser and Select+R3 opens
 rewind.
 
+Rewind steps back a quarter of a second at a time, up to 25 seconds. The
+launcher's settings can turn it off or change the step and how far back it
+reaches.
+
 ## Options
 
 `build\strikegunner.ini` (created on first play; restart to apply):
