@@ -86,9 +86,11 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
 cmake --build build -j
 ```
 
-The `snesrecomp` submodule is pinned to a local commit carrying five fixes
-that are not upstream; a fresh clone cannot fetch it. `patches/README.md`
-lists them and how to re-apply them to the upstream commit.
+The `snesrecomp` submodule comes from a fork,
+[SlippyGetBackHere/snesrecomp](https://github.com/SlippyGetBackHere/snesrecomp),
+branch `local/mode2-renderer-fix`: upstream plus twelve fixes this port needs
+that are not upstream. `git clone --recursive` fetches it.
+`patches/README.md` lists the fixes and how to re-apply them to upstream.
 
 The ROM does not have to live in the repository — keeping it on your own
 drive is the better habit, and `SNESRECOMP_ROM` sets the path once for a

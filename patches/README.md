@@ -1,9 +1,9 @@
 # Local framework patches
 
-The `snesrecomp` submodule is pinned to a commit that exists only in this
-checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus twelve local commits, one per
-patch file below, applied in this order.
+The `snesrecomp` submodule is pinned to branch `local/mode2-renderer-fix` of
+the fork https://github.com/SlippyGetBackHere/snesrecomp. It is upstream
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus twelve commits, one per patch
+file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
 
@@ -92,8 +92,8 @@ opened by F12 did nothing visible and the strip could not be left.
 
 ## Re-applying them
 
-A fresh clone cannot fetch the local commit, and a framework update drops it.
-In either case, from the project root:
+Moving to a newer upstream framework drops them, and they are the way back if
+the fork is ever unavailable. In either case, from the project root:
 
     git -C snesrecomp checkout <upstream commit>
     git -C snesrecomp apply ../patches/snesrecomp-mode2-renderer.patch
