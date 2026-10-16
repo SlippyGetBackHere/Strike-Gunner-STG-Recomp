@@ -22,7 +22,8 @@ and developing the port.
 **Playable from start to finish** (as of 2026-10-14): intro, attract demo,
 all stages, and the ending through the credits to "The End", in single-player
 play on Windows. Two-player play starts and both ships answer their own
-controller (headless check); a full 2P playthrough has not been done.
+controller (headless check), and the launcher's second seat works with
+either player on keyboard or pad; a full 2P playthrough has not been done.
 
 - **Accuracy.** Checked against snes9x with identical scripted input: game
   events land on the same frames for the first 3,162 frames of a
@@ -38,16 +39,20 @@ controller (headless check); a full 2P playthrough has not been done.
   (`recomp/coverage/`). Uncovered code runs on the interpreter.
 - **Save states** keep the frame driver's resume point, so a state resumes
   exactly where it was made (checked by saving, playing on, and reloading:
-  identical memory and picture). Rewind uses the same hooks. The save-state
-  browser and the rewind panel open and close from a controller without
-  disturbing the game (the framework's pad self-test: every scene dump
-  identical to a run without it); committing a rewind has not been tested
-  by hand yet.
+  identical memory and picture).
+- **Rewind** (0.1.1): quarter-second steps, 25 seconds back by default,
+  adjustable in the launcher. Committing a rewind lands exactly on the
+  earlier frame (2 seconds back matched a plain run 120 frames earlier:
+  memory, video memory, registers and picture), and committing, cancelling
+  and opening work from keyboard and controller (checked by hand). Opening
+  the save-state browser or rewind panel without committing leaves the game
+  bit-identical.
 - **Setup packs.** `scripts/package_release.sh` builds a setup pack that
   generates and builds the game on the player's PC from their ROM, with no
   Rust or other tools beyond what the launcher downloads. Checked on
   Windows from a fresh unzip: the code it generates matches a developer
-  regeneration, and the game played through stage 1.
+  regeneration, and the game played through stage 1. Current tester build:
+  0.1.1 (tag `v0.1.1`).
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 
