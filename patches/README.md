@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to a commit that exists only in this
 checkout (branch `local/mode2-renderer-fix`). It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus eleven local commits, one per
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus twelve local commits, one per
 patch file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -84,6 +84,12 @@ Two optional host fields, `rewind_default_depth` and
 `rewind_default_interval`, set the rewind ring a fresh install starts with.
 `src/main.c` uses them for quarter-second steps reaching 25 seconds back.
 
+## snesrecomp-rewind-hotkey.patch
+
+The rewind hotkey (F12) is cleared before the filmstrip opens. It was left
+set, so the strip reopened every frame: committing or cancelling a rewind
+opened by F12 did nothing visible and the strip could not be left.
+
 ## Re-applying them
 
 A fresh clone cannot fetch the local commit, and a framework update drops it.
@@ -101,6 +107,7 @@ In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-generate-funcs-h-first.patch
     git -C snesrecomp apply ../patches/snesrecomp-rebuild-helper-env.patch
     git -C snesrecomp apply ../patches/snesrecomp-rewind-defaults.patch
+    git -C snesrecomp apply ../patches/snesrecomp-rewind-hotkey.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.
