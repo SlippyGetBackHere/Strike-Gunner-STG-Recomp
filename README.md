@@ -20,6 +20,17 @@ analysis has reached.
 and see [`PLAYING.md`](PLAYING.md): setup, controls, options and how to report
 a problem. The rest of this file is for building and developing the port.
 
+## Screenshots
+
+| | |
+|:---:|:---:|
+| ![Weapon select](docs/weapon-select.png) | ![Stage 2: a bomber squadron](docs/stage2-bombers.png) |
+| Weapon select: 15 weapons to choose from | Stage 2: a bomber squadron |
+| ![Stage 4: the fleet at sea](docs/stage4-fleet.png) | ![Stage 4: attacking a warship](docs/stage4-warship.png) |
+| Stage 4: the fleet at sea | Stage 4: attacking a warship |
+| ![Stage 6: the mothership](docs/stage6-mothership.png) | ![Two players in stage 1](docs/two-player.png) |
+| Stage 6: the mothership in the asteroid field | Two players at once (2P START) |
+
 ## Status
 
 **Playable from start to finish** (as of 2026-10-14): intro, attract demo,
