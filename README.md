@@ -1,5 +1,7 @@
 # Strike Gunner S.T.G Recomp
 
+![Strike Gunner S.T.G title screen](docs/title-screen.png)
+
 A native recompilation of **Strike Gunner S.T.G** (USA), built on
 [snesrecomp](https://github.com/RetroPortingToolKit/snesrecomp).
 
