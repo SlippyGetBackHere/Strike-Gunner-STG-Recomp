@@ -13,9 +13,10 @@ analysis has reached.
 > this project, in the repository or in any release. The recompiled C is
 > generated locally from your own copy and is never committed.
 
-**Playing a test build?** See [`PLAYING.md`](PLAYING.md): setup, controls,
-options and how to report a problem. The rest of this file is for building
-and developing the port.
+**Just want to play?** Download the latest release from the
+[Releases page](https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp/releases)
+and see [`PLAYING.md`](PLAYING.md): setup, controls, options and how to report
+a problem. The rest of this file is for building and developing the port.
 
 ## Status
 
@@ -51,8 +52,8 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   generates and builds the game on the player's PC from their ROM, with no
   Rust or other tools beyond what the launcher downloads. Checked on
   Windows from a fresh unzip: the code it generates matches a developer
-  regeneration, and the game played through stage 1. Current tester build:
-  0.1.1 (tag `v0.1.1`).
+  regeneration, and the game played through stage 1. Current release:
+  0.1.1 (tag `v0.1.1`), the first public release.
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 

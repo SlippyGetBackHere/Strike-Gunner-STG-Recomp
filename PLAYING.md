@@ -1,8 +1,8 @@
-# Playing Strike Gunner S.T.G (test build)
+# Playing Strike Gunner S.T.G
 
 A native PC version of the 1992 SNES shooter **Strike Gunner S.T.G**, made by
-recompiling the game's code. This is a test build: please report anything
-that looks, sounds or plays differently from the console.
+recompiling the game's code. If anything looks, sounds or plays differently
+from the console, please report it.
 
 **You need your own copy of the game.** The download contains no game data.
 The first time you run it, it builds the game on your PC from your ROM file.
@@ -35,7 +35,7 @@ If the console stops with "Configure failed" or "Build failed", it waits for
 you. Please copy its last lines into your report.
 
 Windows may warn that the program is from an unknown publisher, because the
-test build is not signed.
+release is not signed.
 
 ## Playing again
 
