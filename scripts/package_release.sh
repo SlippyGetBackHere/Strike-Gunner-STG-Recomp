@@ -82,7 +82,18 @@ ROM_FILE=${ROM_FILE%$'\r'}; ROM_SHA256=${ROM_SHA256%$'\r'}; ROM_CRC32=${ROM_CRC3
 # mods/ is the catalog the build stages beside the executable, and the package
 # a netplay host transfers to a guest. Add --runtime-dir <name> for any other
 # directory the game loads exe-relative (translations, ...).
+#
+# The framework's documentation, test suites and dev-only tooling are left
+# out: a player's Generate & rebuild never reads them (this project includes
+# recomp_ui.cmake, not recomp-ui's own CMakeLists with its tests), and they
+# were about a sixth of the pack.
 exec bash "$IMPL" \
+  --exclude-dir snesrecomp/docs \
+  --exclude-dir snesrecomp/tests \
+  --exclude-dir snesrecomp/fuzz \
+  --exclude-dir snesrecomp/cosim \
+  --exclude-dir recomp-ui/docs \
+  --exclude-dir recomp-ui/tests \
   --runtime-dir mods \
   --build-dir "$BUILD_DIR" \
   --artifact "$PLATFORM" \

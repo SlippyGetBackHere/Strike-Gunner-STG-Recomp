@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to branch `local/mode2-renderer-fix` of
 the fork https://github.com/SlippyGetBackHere/snesrecomp. It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus twelve commits, one per patch
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus thirteen commits, one per patch
 file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -90,6 +90,13 @@ The rewind hotkey (F12) is cleared before the filmstrip opens. It was left
 set, so the strip reopened every frame: committing or cancelling a rewind
 opened by F12 did nothing visible and the strip could not be left.
 
+## snesrecomp-pack-exclude-dir.patch
+
+`stage_setup_host.sh --exclude-dir PATH` leaves a tracked directory out of a
+setup pack. `scripts/package_release.sh` uses it to drop the framework's
+documentation and test suites (about 11 MB) that a player's rebuild never
+reads.
+
 ## Re-applying them
 
 Moving to a newer upstream framework drops them, and they are the way back if
@@ -108,6 +115,7 @@ the fork is ever unavailable. In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-rebuild-helper-env.patch
     git -C snesrecomp apply ../patches/snesrecomp-rewind-defaults.patch
     git -C snesrecomp apply ../patches/snesrecomp-rewind-hotkey.patch
+    git -C snesrecomp apply ../patches/snesrecomp-pack-exclude-dir.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.

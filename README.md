@@ -66,7 +66,12 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   Rust or other tools beyond what the launcher downloads. Checked on
   Windows from a fresh unzip: the code it generates matches a developer
   regeneration, and the game played through stage 1. Current release:
-  0.1.1 (tag `v0.1.1`), the first public release.
+  0.1.2 (tag `v0.1.2`). The framework's documentation and test suites are
+  left out of packs.
+- **Mods** (0.1.2): an Infinite lives feature on the launcher's Mods page,
+  off by default (`mods/preloaded/packages/strikegunnerstg.gameplay`,
+  `src/mod_infinite_lives.c`). Off, the game is unchanged (attract run
+  identical to the stock build); on, neither player loses spare lives.
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 

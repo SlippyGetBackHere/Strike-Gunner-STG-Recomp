@@ -98,6 +98,18 @@ reaches.
 Display, sound and input settings are in the launcher and in
 `build\config.ini`.
 
+## Mods
+
+Optional changes to the game are on the launcher's **Mods** page. Everything
+there is off by default, so the game plays as the original unless you turn
+something on. Change them before clicking **Play**.
+
+- **Gameplay options → Infinite lives**: losing a life no longer uses up a
+  spare life, so the game never ends. Works for both players. Extra lives,
+  new games and continues work as normal.
+
+When reporting a problem, say which mods were on.
+
 ## Known issues
 
 See `KNOWN_ISSUES.md`. In short:

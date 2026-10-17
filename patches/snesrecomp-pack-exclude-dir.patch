@@ -1,0 +1,71 @@
+From e2c7034e1304dd1f0bb473cba2041140a7cc3471 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 02:51:33 -0400
+Subject: [PATCH] ci: stage_setup_host --exclude-dir leaves tracked directories
+ out of packs
+
+For documentation and test suites a player's rebuild never reads. The
+files the setup host needs are still checked after staging.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/ci/stage_setup_host.sh | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/tools/ci/stage_setup_host.sh b/tools/ci/stage_setup_host.sh
+index 2ab08fe..41d60b2 100755
+--- a/tools/ci/stage_setup_host.sh
++++ b/tools/ci/stage_setup_host.sh
+@@ -22,7 +22,13 @@
+ #       --exe-name MyGameSNESRecomp --zip-prefix mygame --display-name "My Game" \
+ #       [--runtime-dir NAME]... [--rom-hint "My Game (USA).sfc"] \
+ #       [--rom-sha256 HEX] [--rom-crc32 HEX] \
+-#       [--embed-toolchain] [--toolchain-dir DIR] [--root DIR]
++#       [--embed-toolchain] [--toolchain-dir DIR] [--root DIR] \
++#       [--exclude-dir PATH]...
++#
++# --exclude-dir leaves a tracked directory (repo-relative, e.g.
++# snesrecomp/docs) out of the source tree: documentation and test suites a
++# player's rebuild never reads. The files the setup host needs are checked
++# after staging, so excluding one of them fails the package.
+ #
+ # Env: RELEASE_VERSION overrides the VERSION file. RETCOMM_TOOLCHAIN_DIR /
+ # TOOLCHAIN_DIR name the pack for --embed-toolchain when --toolchain-dir is
+@@ -48,10 +54,11 @@ ROM_CRC32=""
+ EMBED_TOOLCHAIN=0
+ TOOLCHAIN_DIR_ARG=""
+ RUNTIME_DIRS=()
++EXCLUDE_DIRS=()
+ 
+ while [[ $# -gt 0 ]]; do
+   case "$1" in
+-    -h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
++    -h|--help) sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+     --build-dir) BUILD_DIR="${2:?}"; shift 2 ;;
+     --artifact) ARTIFACT="${2:?}"; shift 2 ;;
+     --exe-name) EXE_NAME="${2:?}"; shift 2 ;;
+@@ -65,6 +72,7 @@ while [[ $# -gt 0 ]]; do
+     --no-embed-toolchain) EMBED_TOOLCHAIN=0; shift ;;
+     --toolchain-dir) TOOLCHAIN_DIR_ARG="${2:?}"; shift 2 ;;
+     --root) ROOT="${2:?}"; shift 2 ;;
++    --exclude-dir) EXCLUDE_DIRS+=("${2%/}/"); shift 2 ;;
+     *) echo "error: unknown arg: $1" >&2; exit 2 ;;
+   esac
+ done
+@@ -155,7 +163,12 @@ fi
+ # whole copy (CI checkouts never have one; a developer's tree can).
+ git -C "${ROOT}" ls-files -z --recurse-submodules \
+   | grep -zvE '(^|/)\.github/' \
+-  | { while IFS= read -r -d '' f; do [[ -e "${ROOT}/${f}" ]] && printf '%s\0' "${f}"; done; } \
++  | { while IFS= read -r -d '' f; do
++        for x in "${EXCLUDE_DIRS[@]+"${EXCLUDE_DIRS[@]}"}"; do
++          [[ "${f}" == "${x}"* ]] && continue 2
++        done
++        [[ -e "${ROOT}/${f}" ]] && printf '%s\0' "${f}"
++      done; } \
+   | tar -C "${ROOT}" --null -T - -cf - \
+   | tar -xf - -C "${STAGE}"
+ # Where things came from, for whoever debugs a player's rebuild.
+-- 
+2.50.0.windows.2
+
