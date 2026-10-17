@@ -370,6 +370,7 @@ static void StgStateLoaded(uint32_t version)
 {
   (void)version;
   StgInfiniteLivesForget();
+  StgCustomMusicOnStateLoaded();
   /* The PPU's raster journal (ppu.c) holds the last field's register
    * baseline, which the renderer restores before drawing. It is not part of
    * the state, so after a load it still held whatever was on screen before
@@ -422,6 +423,7 @@ static void StgHardwareReset(void)
 {
   s_resume_pc = 0;
   s_wai_halted = false;
+  StgCustomMusicOnReset();
 }
 
 const RtlGameInfo kGameInfo = {

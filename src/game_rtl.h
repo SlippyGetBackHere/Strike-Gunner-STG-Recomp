@@ -18,6 +18,11 @@ void GameRequestImmediateResume(void);
  * after a state load or rewind, so going back is never "corrected". */
 void StgInfiniteLivesForget(void);
 
+/* Custom-music plugin (mod_custom_music.c): the machine rebooted (its sound
+ * driver is uploaded again), or a save state was loaded. */
+void StgCustomMusicOnReset(void);
+void StgCustomMusicOnStateLoaded(void);
+
 extern const RtlGameInfo kGameInfo;
 
 #endif /* GAME_RTL_H */

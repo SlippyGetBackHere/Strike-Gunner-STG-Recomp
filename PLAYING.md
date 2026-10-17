@@ -113,6 +113,24 @@ something on. Change them before clicking **Play**.
   Weapons used while it is on are forgotten by the game, so they stay
   available even after you turn it off, including in save states made while
   it was on.
+- **Music → Custom music**: plays your own music instead of the game's.
+  Sound effects are unchanged.
+  1. Turn it on and play once: a `music` folder is created next to the game
+     (`build\music`), with one folder per piece of music and a
+     `README.txt` explaining them: `title`, `weapon-select`, `stage1` to
+     `stage8`, `boss` (or `boss-stage1` to `boss-stage8` for one stage),
+     `stage-clear`, `game-over`, and `any`, which is used for every empty
+     folder. You can also choose a different folder on the Mods page.
+  2. Put WAV files in the folders you want to replace. A folder that stays
+     empty, with nothing in `any` either, keeps the original music.
+  3. Settings on the Mods page: play several songs in order or at random,
+     loop a song or move to the next one when it ends, the music volume, and
+     whether to keep the original stage clear and game over jingles (on by
+     default). Songs are matched to the loudness of the game's own music
+     unless you turn that off.
+
+  Loading a save state pauses your music until the game's next piece of
+  music starts; rewinding carries on playing.
 
 When reporting a problem, say which mods were on.
 

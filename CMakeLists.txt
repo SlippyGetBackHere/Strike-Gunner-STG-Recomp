@@ -44,6 +44,7 @@ add_executable(StrikeGunnerSTGSNESRecomp
     src/gen_stubs.c
     src/mod_infinite_lives.c
     src/mod_all_weapons.c
+    src/mod_custom_music.c
 )
 
 # ROM identity. rom_identity.txt is the one place the digests live: the build

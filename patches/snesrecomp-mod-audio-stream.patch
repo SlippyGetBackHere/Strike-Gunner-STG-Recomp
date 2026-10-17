@@ -1,0 +1,220 @@
+From a7d5e9bd9e7c89cfdf1c47e219287bc098241662 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 17:38:26 -0400
+Subject: [PATCH] mod_audio: one streamed voice for long material
+
+snes_mod_audio_stream_start/stop/set_gain/active/ended. The trusted
+plugin supplies interleaved s16 frames on demand from the audio thread
+(under the APU lock); the mixer resamples them to the device rate with
+the clips' linear interpolation, applies gain, and reports when the
+source runs out. stop_all stops it with the clips. For music, which is
+far beyond the 16 MiB clip budget.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ runner/src/mod_audio.c | 137 +++++++++++++++++++++++++++++++++++++++++
+ runner/src/mod_audio.h |  23 +++++++
+ 2 files changed, 160 insertions(+)
+
+diff --git a/runner/src/mod_audio.c b/runner/src/mod_audio.c
+index 082f135..f61e9dd 100644
+--- a/runner/src/mod_audio.c
++++ b/runner/src/mod_audio.c
+@@ -122,9 +122,39 @@ static ClipSlot *clip_slot(SNESModAudioClip clip) {
+     return &s_clips[clip - 1];
+ }
+ 
++/* The streamed voice. buf holds source frames [0, len); idx/frac is the read
++ * position. Interpolating needs idx and idx+1, so a refill keeps the current
++ * frame at buf[0] and appends after it. */
++#define SNES_MOD_AUDIO_STREAM_BUF 4096
++typedef struct StreamVoice {
++    SNESModAudioStreamFill fill;
++    void *user;
++    uint32_t sample_rate;
++    uint32_t channels;
++    int gain_percent;
++    int active;
++    int ended;
++    int source_done;
++    uint32_t len;
++    uint32_t idx;
++    uint32_t frac; /* 0.32 fixed point between idx and idx+1 */
++    int16_t buf[SNES_MOD_AUDIO_STREAM_BUF * 2];
++} StreamVoice;
++static StreamVoice s_stream;
++
++static void stream_stop_locked(void) {
++    s_stream.active = 0;
++    s_stream.fill = NULL;
++    s_stream.user = NULL;
++    s_stream.len = s_stream.idx = s_stream.frac = 0;
++    s_stream.source_done = 0;
++}
++
+ static void stop_all_locked(void) {
+     memset(s_voices, 0, sizeof(s_voices));
+     s_replace_cursor = 0;
++    stream_stop_locked();
++    s_stream.ended = 0;
+ }
+ 
+ SNESModAudioClip snes_mod_audio_register_pcm_s16(
+@@ -275,6 +305,112 @@ static int16_t clamp_s16(int64_t value) {
+     return (int16_t)value;
+ }
+ 
++int snes_mod_audio_stream_start(SNESModAudioStreamFill fill, void *user,
++                                uint32_t sample_rate, uint32_t channels,
++                                int gain_percent) {
++    if (!fill || sample_rate < 8000 || sample_rate > 192000 ||
++        (channels != SNES_MOD_AUDIO_CHANNELS_MONO &&
++         channels != SNES_MOD_AUDIO_CHANNELS_STEREO))
++        return 0;
++    if (gain_percent < 0) gain_percent = 0;
++    if (gain_percent > 200) gain_percent = 200;
++    RtlApuLock();
++    stream_stop_locked();
++    s_stream.fill = fill;
++    s_stream.user = user;
++    s_stream.sample_rate = sample_rate;
++    s_stream.channels = channels;
++    s_stream.gain_percent = gain_percent;
++    s_stream.ended = 0;
++    s_stream.active = 1;
++    RtlApuUnlock();
++    return 1;
++}
++
++void snes_mod_audio_stream_stop(void) {
++    RtlApuLock();
++    stream_stop_locked();
++    s_stream.ended = 0;
++    RtlApuUnlock();
++}
++
++int snes_mod_audio_stream_set_gain(int gain_percent) {
++    if (gain_percent < 0) gain_percent = 0;
++    if (gain_percent > 200) gain_percent = 200;
++    RtlApuLock();
++    const int active = s_stream.active;
++    s_stream.gain_percent = gain_percent;
++    RtlApuUnlock();
++    return active;
++}
++
++int snes_mod_audio_stream_active(void) {
++    RtlApuLock();
++    const int active = s_stream.active;
++    RtlApuUnlock();
++    return active;
++}
++
++int snes_mod_audio_stream_ended(void) {
++    RtlApuLock();
++    const int ended = s_stream.ended;
++    RtlApuUnlock();
++    return ended;
++}
++
++/* Make buf[idx] and buf[idx + 1] valid, refilling from the source. Returns 0
++ * once there is no next frame left (the stream has ended). */
++static int stream_ensure_locked(void) {
++    while (s_stream.idx + 1 >= s_stream.len) {
++        if (s_stream.source_done)
++            return s_stream.idx + 1 < s_stream.len;
++        const uint32_t ch = s_stream.channels;
++        uint32_t keep = 0;
++        if (s_stream.idx < s_stream.len) {
++            memmove(s_stream.buf, s_stream.buf + (size_t)s_stream.idx * ch,
++                    (size_t)ch * sizeof(int16_t));
++            keep = 1;
++        }
++        s_stream.idx = 0;
++        const uint32_t want = SNES_MOD_AUDIO_STREAM_BUF - keep;
++        const uint32_t got = s_stream.fill(s_stream.user,
++                                           s_stream.buf + (size_t)keep * ch, want);
++        s_stream.len = keep + (got > want ? want : got);
++        if (got < want) s_stream.source_done = 1;
++        if (keep == 0 && s_stream.len == 0) return 0;
++    }
++    return 1;
++}
++
++static void stream_mix_locked(int64_t mixed[2], uint32_t output_rate,
++                              uint32_t output_channels) {
++    if (!s_stream.active) return;
++    if (!stream_ensure_locked()) {
++        stream_stop_locked();
++        s_stream.ended = 1;
++        return;
++    }
++    const uint32_t ch = s_stream.channels;
++    const int16_t *a = s_stream.buf + (size_t)s_stream.idx * ch;
++    const int16_t *b = a + ch;
++    int32_t out[2];
++    for (uint32_t c = 0; c < 2; ++c) {
++        const uint32_t sc = ch == 1 ? 0 : c;
++        out[c] = a[sc] + (int32_t)(((int64_t)(b[sc] - a[sc]) * s_stream.frac) /
++                                   4294967296LL);
++    }
++    if (output_channels == 1) {
++        mixed[0] += ((int64_t)((out[0] + out[1]) / 2) * s_stream.gain_percent) / 100;
++    } else {
++        mixed[0] += ((int64_t)out[0] * s_stream.gain_percent) / 100;
++        mixed[1] += ((int64_t)out[1] * s_stream.gain_percent) / 100;
++    }
++    const uint64_t step = ((uint64_t)s_stream.sample_rate << 32) / output_rate;
++    const uint64_t pos = (uint64_t)s_stream.frac + step;
++    s_stream.idx += (uint32_t)(pos >> 32);
++    s_stream.frac = (uint32_t)pos;
++}
++
+ void snes_mod_audio_mix(int16_t *dst, int frame_count, uint32_t output_rate,
+                         uint32_t output_channels) {
+     if (!dst || frame_count <= 0 || output_rate < 8000 || output_rate > 192000 ||
+@@ -321,6 +457,7 @@ void snes_mod_audio_mix(int16_t *dst, int frame_count, uint32_t output_rate,
+                 memset(voice, 0, sizeof(*voice));
+             }
+         }
++        stream_mix_locked(mixed, output_rate, output_channels);
+         for (uint32_t channel = 0; channel < output_channels; ++channel)
+             dst[(size_t)frame * output_channels + channel] = clamp_s16(mixed[channel]);
+     }
+diff --git a/runner/src/mod_audio.h b/runner/src/mod_audio.h
+index 94c1be0..b9327f1 100644
+--- a/runner/src/mod_audio.h
++++ b/runner/src/mod_audio.h
+@@ -67,6 +67,29 @@ void snes_mod_audio_stop_all(void);
+  * acknowledgements and loop intent without serializing presentation state. */
+ uint32_t snes_mod_audio_reset_generation(void);
+ 
++/*
++ * One streamed voice for material too long to register as a clip (music).
++ * The trusted plugin owns the source: `fill` is called from the audio thread,
++ * under the APU lock, to write up to `frames` interleaved signed-16 frames of
++ * `channels` (1 or 2) at `sample_rate` into `dst`, and returns how many it
++ * wrote. Returning fewer than asked marks the end of the stream: the voice
++ * drains what it has and stops, and snes_mod_audio_stream_ended() reports it.
++ * The mixer resamples to the device rate and applies gain (0-200%). `fill`
++ * must not block or call back into this API. Starting a stream replaces any
++ * current one; stop_all (reset, save-state load) stops it too.
++ */
++typedef uint32_t (*SNESModAudioStreamFill)(void *user, int16_t *dst,
++                                           uint32_t frames);
++int snes_mod_audio_stream_start(SNESModAudioStreamFill fill, void *user,
++                                uint32_t sample_rate, uint32_t channels,
++                                int gain_percent);
++void snes_mod_audio_stream_stop(void);
++int snes_mod_audio_stream_set_gain(int gain_percent);
++/* Nonzero while a stream is playing. */
++int snes_mod_audio_stream_active(void);
++/* Nonzero once the current stream ran out of source (not when stopped). */
++int snes_mod_audio_stream_ended(void);
++
+ /* Saturating-mix active one-shots into interleaved mono/stereo destination
+  * PCM. output_rate is the actual device rate for this callback. The host calls
+  * this from its existing audio lock; control functions take that same lock. */
+-- 
+2.50.0.windows.2
+

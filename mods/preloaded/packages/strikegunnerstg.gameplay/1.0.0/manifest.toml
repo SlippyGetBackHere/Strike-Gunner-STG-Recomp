@@ -33,3 +33,80 @@ default_enabled = false
 [[plugin]]
 feature = "all_weapons"
 id = "strikegunnerstg.all_weapons"
+
+[[feature]]
+id = "custom_music"
+name = "Custom music"
+description = "Replace the game's music with your own WAV files. Put them in the folders inside the music folder (created the first time you play with this on): one folder per stage, plus title, weapon select, boss and an 'any' folder used for every empty one. Empty folders keep the original music. Sound effects are unchanged."
+group = "Music"
+default_enabled = false
+
+[[plugin]]
+feature = "custom_music"
+id = "strikegunnerstg.custom_music"
+
+[[option]]
+feature = "custom_music"
+id = "order"
+label = "Order"
+description = "How songs are picked when a folder has more than one."
+type = "choice"
+default = "sequential"
+
+[[option.choice]]
+value = "sequential"
+label = "Sequential"
+
+[[option.choice]]
+value = "random"
+label = "Random (never the same song twice in a row)"
+
+[[option]]
+feature = "custom_music"
+id = "on_end"
+label = "When a song ends"
+type = "choice"
+default = "loop"
+
+[[option.choice]]
+value = "loop"
+label = "Loop it"
+
+[[option.choice]]
+value = "next"
+label = "Play the next song"
+
+[[option]]
+feature = "custom_music"
+id = "match_loudness"
+label = "Match the game's music loudness"
+description = "Scale each song to the level of the game's own music, so loud and quiet recordings sit alike next to the sound effects."
+type = "boolean"
+default = true
+
+[[option]]
+feature = "custom_music"
+id = "volume"
+label = "Music volume (%)"
+description = "Your music's volume relative to the game's sound effects (applied after loudness matching)."
+type = "integer"
+default = 100
+min = 0
+max = 200
+step = 10
+
+[[option]]
+feature = "custom_music"
+id = "keep_jingles"
+label = "Keep the original stage clear and game over jingles"
+description = "They are timed to the game; a long song would be cut off after a few seconds."
+type = "boolean"
+default = true
+
+[[resource]]
+feature = "custom_music"
+id = "music_folder"
+label = "Music folder"
+description = "Leave empty to use the 'music' folder next to the game."
+format = "directory"
+required = false
