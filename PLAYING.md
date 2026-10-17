@@ -107,6 +107,12 @@ something on. Change them before clicking **Play**.
 - **Gameplay options → Infinite lives**: losing a life no longer uses up a
   spare life, so the game never ends. Works for both players. Extra lives,
   new games and continues work as normal.
+- **Gameplay options → All weapons every stage**: every special weapon stays
+  available on the weapon select screen for the whole game, instead of being
+  marked NO USE once you have taken it into a stage. Works for both players.
+  Weapons used while it is on are forgotten by the game, so they stay
+  available even after you turn it off, including in save states made while
+  it was on.
 
 When reporting a problem, say which mods were on.
 

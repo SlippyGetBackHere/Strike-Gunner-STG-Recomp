@@ -22,3 +22,14 @@ default_enabled = false
 [[plugin]]
 feature = "infinite_lives"
 id = "strikegunnerstg.infinite_lives"
+
+[[feature]]
+id = "all_weapons"
+name = "All weapons every stage"
+description = "Every special weapon stays available on the weapon select screen for the whole game, instead of being marked NO USE once it has been taken into a stage. Works for both players."
+group = "Gameplay"
+default_enabled = false
+
+[[plugin]]
+feature = "all_weapons"
+id = "strikegunnerstg.all_weapons"

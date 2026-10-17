@@ -68,10 +68,14 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   regeneration, and the game played through stage 1. Current release:
   0.1.2 (tag `v0.1.2`). The framework's documentation and test suites are
   left out of packs.
-- **Mods** (0.1.2): an Infinite lives feature on the launcher's Mods page,
-  off by default (`mods/preloaded/packages/strikegunnerstg.gameplay`,
-  `src/mod_infinite_lives.c`). Off, the game is unchanged (attract run
-  identical to the stock build); on, neither player loses spare lives.
+- **Mods**: features on the launcher's Mods page, all off by default
+  (`mods/preloaded/packages/strikegunnerstg.gameplay`). Off, the game is
+  unchanged (attract run identical to the stock build).
+  - *Infinite lives* (0.1.2, `src/mod_infinite_lives.c`): neither player
+    loses spare lives.
+  - *All weapons every stage* (`src/mod_all_weapons.c`): the used-weapon
+    flags ($1BED / $1BFC, one byte per weapon) are cleared every frame, so
+    the weapon select screen never marks a weapon NO USE.
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 
