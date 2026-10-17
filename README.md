@@ -107,7 +107,7 @@ cmake --build build -j
 
 The `snesrecomp` submodule comes from a fork,
 [SlippyGetBackHere/snesrecomp](https://github.com/SlippyGetBackHere/snesrecomp),
-branch `local/mode2-renderer-fix`: upstream plus twelve fixes this port needs
+branch `local/mode2-renderer-fix`: upstream plus thirteen changes this port needs
 that are not upstream. `git clone --recursive` fetches it.
 `patches/README.md` lists the fixes and how to re-apply them to upstream.
 
