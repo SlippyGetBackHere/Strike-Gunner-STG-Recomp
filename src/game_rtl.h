@@ -14,6 +14,10 @@ uint64_t GameFrameDeadline(void);
 /* A stub handed a routine back to the driver: resume it without parking. */
 void GameRequestImmediateResume(void);
 
+/* Infinite-lives plugin (mod_infinite_lives.c): drop the remembered counts
+ * after a state load or rewind, so going back is never "corrected". */
+void StgInfiniteLivesForget(void);
+
 extern const RtlGameInfo kGameInfo;
 
 #endif /* GAME_RTL_H */

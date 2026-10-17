@@ -369,6 +369,7 @@ static void StgStateLoadExtra(SaveLoadInfo *sli, uint32_t version)
 static void StgStateLoaded(uint32_t version)
 {
   (void)version;
+  StgInfiniteLivesForget();
   /* The PPU's raster journal (ppu.c) holds the last field's register
    * baseline, which the renderer restores before drawing. It is not part of
    * the state, so after a load it still held whatever was on screen before
@@ -412,6 +413,7 @@ static int StgExecStateLoad(const void *in, size_t size)
     return 0;
   s_resume_pc = st.resume_pc;
   s_wai_halted = st.wai_halted != 0;
+  StgInfiniteLivesForget();
   return 1;
 }
 

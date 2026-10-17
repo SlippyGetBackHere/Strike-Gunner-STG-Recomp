@@ -1,0 +1,24 @@
+format_version = 1
+id = "strikegunnerstg.gameplay"
+version = "1.0.0"
+name = "Gameplay options"
+author = "SlippyGetBackHere"
+description = "Optional changes to how Strike Gunner S.T.G plays. Everything here is off by default; the stock game is unchanged unless you turn a feature on."
+license = "PolyForm-Noncommercial-1.0.0"
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "strikegunnerstg-usa"
+rom_sha256 = "05f14e6ed3394d9273e2397769a8acf1a9db646be6066e82269521e8eec53562"
+
+[[feature]]
+id = "infinite_lives"
+name = "Infinite lives"
+description = "Losing a life no longer uses up a spare life, so the game never ends. Works for both players. Extra lives, new games and continues behave as normal."
+group = "Gameplay"
+default_enabled = false
+
+[[plugin]]
+feature = "infinite_lives"
+id = "strikegunnerstg.infinite_lives"
