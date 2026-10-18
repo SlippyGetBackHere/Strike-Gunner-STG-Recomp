@@ -78,11 +78,17 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
     the weapon select screen never marks a weapon NO USE.
   - *Custom music* (`src/mod_custom_music.c`): song commands on APU port 0
     ($2140; $04 title, $03 weapon select, $01/$07/$06/$08/$09 stages, $02
-    boss, $0A stage clear, $05 game over, $14 stop) are mapped to folders per
-    stage and screen. A replaced song is swallowed, the driver is sent stop,
-    and the player's WAV streams through the framework mixer, scaled to
-    -21 dBFS RMS by default. The power-on driver upload on the same port is
-    skipped. `STG_MUSIC_LOG=<file>` logs every decision.
+    boss, $0A stage clear, $05 game over, $01 in stage 8 the ending, $14
+    stop) are mapped to folders per stage and screen. A replaced song is
+    swallowed, the driver is sent stop, and the player's track streams
+    through the framework mixer, scaled to -21 dBFS RMS by default. Tracks
+    load on a worker thread: WAV (smpl loops), MSU-1 `.pcm`, and MP3, OGG,
+    FLAC through the public-domain decoders in `third_party/audio/`; an
+    `.intro.`/`.loop.` pair loops from the seam. Changes fade over 0.35 s;
+    the slot playing is a tagged record after the STG1 save-state chunk; a
+    "now playing" caption uses the framework's bottom-anchored OSD caption.
+    The power-on driver upload on the same port is skipped.
+    `STG_MUSIC_LOG=<file>` logs every decision.
 
 Open items and what has been ruled out are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
 
@@ -118,7 +124,7 @@ cmake --build build -j
 
 The `snesrecomp` submodule comes from a fork,
 [SlippyGetBackHere/snesrecomp](https://github.com/SlippyGetBackHere/snesrecomp),
-branch `local/mode2-renderer-fix`: upstream plus fourteen changes this port needs
+branch `local/mode2-renderer-fix`: upstream plus fifteen changes this port needs
 that are not upstream. `git clone --recursive` fetches it.
 `patches/README.md` lists the fixes and how to re-apply them to upstream.
 

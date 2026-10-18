@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to branch `local/mode2-renderer-fix` of
 the fork https://github.com/SlippyGetBackHere/snesrecomp. It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus fourteen commits, one per patch
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus fifteen commits, one per patch
 file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -103,6 +103,12 @@ One streamed voice in the mod mixer (`snes_mod_audio_stream_*`): a trusted
 plugin supplies samples on demand and the mixer resamples and mixes them.
 The Custom music mod streams the player's songs through it.
 
+## snesrecomp-osd-caption.patch
+
+A small caption at the bottom of the frame (`snes_osd_caption`), centred or
+against the right edge, in a new small proportional font; long text wraps
+onto a second line. The Custom music mod's "now playing" display uses it.
+
 ## Re-applying them
 
 Moving to a newer upstream framework drops them, and they are the way back if
@@ -123,6 +129,7 @@ the fork is ever unavailable. In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-rewind-hotkey.patch
     git -C snesrecomp apply ../patches/snesrecomp-pack-exclude-dir.patch
     git -C snesrecomp apply ../patches/snesrecomp-mod-audio-stream.patch
+    git -C snesrecomp apply ../patches/snesrecomp-osd-caption.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.

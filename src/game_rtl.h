@@ -22,6 +22,11 @@ void StgInfiniteLivesForget(void);
  * driver is uploaded again), or a save state was loaded. */
 void StgCustomMusicOnReset(void);
 void StgCustomMusicOnStateLoaded(void);
+/* Which custom music is playing, kept in save states after the STG1 chunk
+ * (a state from before it simply lacks the record). */
+struct SaveLoadInfo;
+void StgCustomMusicSaveState(struct SaveLoadInfo *sli);
+void StgCustomMusicLoadState(struct SaveLoadInfo *sli);
 
 extern const RtlGameInfo kGameInfo;
 

@@ -119,18 +119,27 @@ something on. Change them before clicking **Play**.
      (`build\music`), with one folder per piece of music and a
      `README.txt` explaining them: `title`, `weapon-select`, `stage1` to
      `stage8`, `boss` (or `boss-stage1` to `boss-stage8` for one stage),
-     `stage-clear`, `game-over`, and `any`, which is used for every empty
-     folder. You can also choose a different folder on the Mods page.
-  2. Put WAV files in the folders you want to replace. A folder that stays
-     empty, with nothing in `any` either, keeps the original music.
+     `stage-clear`, `game-over`, `ending`, and `any`, which is used for every
+     empty folder. You can also choose a different folder on the Mods page.
+  2. Put music files in the folders you want to replace: WAV, MP3, OGG,
+     FLAC, or MSU-1 `.pcm` tracks. A folder that stays empty, with nothing
+     in `any` either, keeps the original music.
   3. Settings on the Mods page: play several songs in order or at random,
-     loop a song or move to the next one when it ends, the music volume, and
+     loop a song or move to the next one when it ends, the music volume,
      whether to keep the original stage clear and game over jingles (on by
-     default). Songs are matched to the loudness of the game's own music
-     unless you turn that off.
+     default), the song's name at the bottom of the screen when it starts
+     (on by default; bottom centre or bottom right), and the key that skips
+     to the next song (N by default). Songs are matched to the loudness of
+     the game's own music unless you turn that off.
 
-  Loading a save state pauses your music until the game's next piece of
-  music starts; rewinding carries on playing.
+  The name shown is the file's name, without the extension or a `[...]` tag
+  at its end (such as the video id some download tools add).
+
+  For a song that loops seamlessly, name a pair `My Song.intro.ogg` and
+  `My Song.loop.ogg` (any formats, same sample rate): the intro plays once,
+  then the loop part repeats. Loop points stored in WAV files and in MSU-1
+  `.pcm` files are used too. Music fades out briefly when it changes, and
+  save states and rewind keep the right music playing.
 
 When reporting a problem, say which mods were on.
 

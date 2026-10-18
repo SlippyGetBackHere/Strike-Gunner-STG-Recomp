@@ -1,0 +1,366 @@
+From 0389a479d6cb027d96a090d365394f5e17f40f03 Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 04:01:37 -0400
+Subject: [PATCH] osd: a small bottom caption for a title's own notices
+
+snes_osd_caption(msg, duration_ms, anchor, edge_margin) shows a caption
+at the bottom of the frame, centred or against the right edge less a
+margin (SNES_OSD_CAPTION_BOTTOM_CENTER / _RIGHT), separate from the
+top-left toasts; snes_osd_caption_image() hands the panel to the host,
+and ComposeOsd draws it. It uses a new small proportional font (capitals
+6 pixels tall, most glyphs 4 wide; drawn for snesrecomp, CC0) on a
+translucent panel. Text wider than the frame wraps at a space onto a
+second line; past that it is cut with "...". A game's "now playing"
+display uses it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ runner/src/desktop/host_main.c |  12 ++
+ runner/src/snes_osd.c          | 276 ++++++++++++++++++++++++++++++++-
+ runner/src/snes_osd.h          |  17 ++
+ 3 files changed, 304 insertions(+), 1 deletion(-)
+
+diff --git a/runner/src/desktop/host_main.c b/runner/src/desktop/host_main.c
+index f22354c..ba443e9 100644
+--- a/runner/src/desktop/host_main.c
++++ b/runner/src/desktop/host_main.c
+@@ -1200,6 +1200,18 @@ static void ComposeOsd(uint8 *dst, int pitch, int dst_w, int dst_h, int scale_di
+     snes_ovl_blit_panel_rect(dst, pitch, dst_w, dst_h, px, w, h,
+                              dst_w - bw - 4 / scale_div, (dst_h - bh) / 2, bw, bh);
+   }
++  /* A title's caption sits at the bottom, centred or against the right edge
++   * less its margin (given in 1x frame pixels). */
++  int anchor = 0, margin = 0;
++  if (snes_osd_caption_image(&px, &w, &h, &anchor, &margin) && px && w > 0 && h > 0) {
++    const int bw = w / scale_div, bh = h / scale_div;
++    const int unit = dst_w / 256 > 0 ? dst_w / 256 : 1;
++    const int x = anchor == SNES_OSD_CAPTION_BOTTOM_RIGHT
++        ? dst_w - bw - (margin + 2) * unit
++        : (dst_w - bw) / 2;
++    snes_ovl_blit_panel_rect(dst, pitch, dst_w, dst_h, px, w, h,
++                             x, dst_h - bh - 4 * unit, bw, bh);
++  }
+   snes_osd_present_done();
+ }
+ 
+diff --git a/runner/src/snes_osd.c b/runner/src/snes_osd.c
+index 62d5e74..af1ed69 100644
+--- a/runner/src/snes_osd.c
++++ b/runner/src/snes_osd.c
+@@ -448,10 +448,284 @@ static void rasterize(void) {
+     s_img_dirty = 0;
+ }
+ 
++/* Caption font, ASCII 32..126: one byte per row, bit c = column c.
++ * Proportional (CAP_FONT_W columns, 1-5); capitals 6 rows tall, row 6
++ * holds descenders. Drawn for snesrecomp; CC0. */
++static const uint8_t CAP_FONT[95][7] = {
++    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, /* 32 */
++    { 0x01, 0x01, 0x01, 0x01, 0x00, 0x01, 0x00 }, /* 33 */
++    { 0x05, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00 }, /* 34 */
++    { 0x0A, 0x1F, 0x0A, 0x1F, 0x0A, 0x00, 0x00 }, /* 35 */
++    { 0x02, 0x07, 0x01, 0x07, 0x04, 0x07, 0x02 }, /* 36 */
++    { 0x09, 0x08, 0x04, 0x02, 0x01, 0x09, 0x00 }, /* 37 */
++    { 0x02, 0x05, 0x02, 0x05, 0x09, 0x0E, 0x00 }, /* 38 */
++    { 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 }, /* 39 */
++    { 0x02, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00 }, /* 40 */
++    { 0x01, 0x02, 0x02, 0x02, 0x02, 0x01, 0x00 }, /* 41 */
++    { 0x00, 0x05, 0x02, 0x05, 0x00, 0x00, 0x00 }, /* 42 */
++    { 0x00, 0x00, 0x02, 0x07, 0x02, 0x00, 0x00 }, /* 43 */
++    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01 }, /* 44 */
++    { 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00 }, /* 45 */
++    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 }, /* 46 */
++    { 0x04, 0x04, 0x02, 0x02, 0x01, 0x01, 0x00 }, /* 47 */
++    { 0x06, 0x09, 0x0D, 0x0B, 0x09, 0x06, 0x00 }, /* 48 */
++    { 0x02, 0x03, 0x02, 0x02, 0x02, 0x07, 0x00 }, /* 49 */
++    { 0x06, 0x09, 0x08, 0x04, 0x02, 0x0F, 0x00 }, /* 50 */
++    { 0x07, 0x08, 0x06, 0x08, 0x08, 0x07, 0x00 }, /* 51 */
++    { 0x09, 0x09, 0x09, 0x0F, 0x08, 0x08, 0x00 }, /* 52 */
++    { 0x0F, 0x01, 0x07, 0x08, 0x08, 0x07, 0x00 }, /* 53 */
++    { 0x06, 0x01, 0x07, 0x09, 0x09, 0x06, 0x00 }, /* 54 */
++    { 0x0F, 0x08, 0x04, 0x02, 0x02, 0x02, 0x00 }, /* 55 */
++    { 0x06, 0x09, 0x06, 0x09, 0x09, 0x06, 0x00 }, /* 56 */
++    { 0x06, 0x09, 0x09, 0x0E, 0x08, 0x06, 0x00 }, /* 57 */
++    { 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00 }, /* 58 */
++    { 0x00, 0x00, 0x02, 0x00, 0x00, 0x02, 0x01 }, /* 59 */
++    { 0x00, 0x04, 0x02, 0x01, 0x02, 0x04, 0x00 }, /* 60 */
++    { 0x00, 0x00, 0x07, 0x00, 0x07, 0x00, 0x00 }, /* 61 */
++    { 0x00, 0x01, 0x02, 0x04, 0x02, 0x01, 0x00 }, /* 62 */
++    { 0x06, 0x09, 0x04, 0x02, 0x00, 0x02, 0x00 }, /* 63 */
++    { 0x06, 0x09, 0x0D, 0x0D, 0x01, 0x0E, 0x00 }, /* 64 */
++    { 0x06, 0x09, 0x09, 0x0F, 0x09, 0x09, 0x00 }, /* 65 */
++    { 0x07, 0x09, 0x07, 0x09, 0x09, 0x07, 0x00 }, /* 66 */
++    { 0x06, 0x09, 0x01, 0x01, 0x09, 0x06, 0x00 }, /* 67 */
++    { 0x07, 0x09, 0x09, 0x09, 0x09, 0x07, 0x00 }, /* 68 */
++    { 0x07, 0x01, 0x03, 0x01, 0x01, 0x07, 0x00 }, /* 69 */
++    { 0x07, 0x01, 0x03, 0x01, 0x01, 0x01, 0x00 }, /* 70 */
++    { 0x06, 0x01, 0x01, 0x0D, 0x09, 0x0E, 0x00 }, /* 71 */
++    { 0x09, 0x09, 0x0F, 0x09, 0x09, 0x09, 0x00 }, /* 72 */
++    { 0x07, 0x02, 0x02, 0x02, 0x02, 0x07, 0x00 }, /* 73 */
++    { 0x0C, 0x08, 0x08, 0x08, 0x09, 0x06, 0x00 }, /* 74 */
++    { 0x09, 0x05, 0x03, 0x05, 0x09, 0x09, 0x00 }, /* 75 */
++    { 0x01, 0x01, 0x01, 0x01, 0x01, 0x07, 0x00 }, /* 76 */
++    { 0x11, 0x1B, 0x15, 0x11, 0x11, 0x11, 0x00 }, /* 77 */
++    { 0x09, 0x0B, 0x0B, 0x0D, 0x0D, 0x09, 0x00 }, /* 78 */
++    { 0x06, 0x09, 0x09, 0x09, 0x09, 0x06, 0x00 }, /* 79 */
++    { 0x07, 0x09, 0x09, 0x07, 0x01, 0x01, 0x00 }, /* 80 */
++    { 0x06, 0x09, 0x09, 0x09, 0x05, 0x0A, 0x00 }, /* 81 */
++    { 0x07, 0x09, 0x09, 0x07, 0x05, 0x09, 0x00 }, /* 82 */
++    { 0x0E, 0x01, 0x06, 0x08, 0x08, 0x07, 0x00 }, /* 83 */
++    { 0x07, 0x02, 0x02, 0x02, 0x02, 0x02, 0x00 }, /* 84 */
++    { 0x09, 0x09, 0x09, 0x09, 0x09, 0x06, 0x00 }, /* 85 */
++    { 0x05, 0x05, 0x05, 0x05, 0x05, 0x02, 0x00 }, /* 86 */
++    { 0x11, 0x11, 0x11, 0x15, 0x1B, 0x11, 0x00 }, /* 87 */
++    { 0x05, 0x05, 0x02, 0x02, 0x05, 0x05, 0x00 }, /* 88 */
++    { 0x05, 0x05, 0x05, 0x02, 0x02, 0x02, 0x00 }, /* 89 */
++    { 0x0F, 0x08, 0x04, 0x02, 0x01, 0x0F, 0x00 }, /* 90 */
++    { 0x03, 0x01, 0x01, 0x01, 0x01, 0x03, 0x00 }, /* 91 */
++    { 0x01, 0x01, 0x02, 0x02, 0x04, 0x04, 0x00 }, /* 92 */
++    { 0x03, 0x02, 0x02, 0x02, 0x02, 0x03, 0x00 }, /* 93 */
++    { 0x02, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00 }, /* 94 */
++    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F }, /* 95 */
++    { 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00 }, /* 96 */
++    { 0x00, 0x00, 0x0E, 0x09, 0x09, 0x0E, 0x00 }, /* 97 */
++    { 0x01, 0x01, 0x07, 0x09, 0x09, 0x07, 0x00 }, /* 98 */
++    { 0x00, 0x00, 0x06, 0x01, 0x01, 0x06, 0x00 }, /* 99 */
++    { 0x08, 0x08, 0x0E, 0x09, 0x09, 0x0E, 0x00 }, /* 100 */
++    { 0x00, 0x00, 0x06, 0x0F, 0x01, 0x0E, 0x00 }, /* 101 */
++    { 0x06, 0x01, 0x07, 0x01, 0x01, 0x01, 0x00 }, /* 102 */
++    { 0x00, 0x00, 0x0E, 0x09, 0x0E, 0x08, 0x06 }, /* 103 */
++    { 0x01, 0x01, 0x07, 0x09, 0x09, 0x09, 0x00 }, /* 104 */
++    { 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x00 }, /* 105 */
++    { 0x02, 0x00, 0x02, 0x02, 0x02, 0x02, 0x01 }, /* 106 */
++    { 0x01, 0x01, 0x05, 0x03, 0x05, 0x05, 0x00 }, /* 107 */
++    { 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00 }, /* 108 */
++    { 0x00, 0x00, 0x0F, 0x15, 0x15, 0x15, 0x00 }, /* 109 */
++    { 0x00, 0x00, 0x07, 0x09, 0x09, 0x09, 0x00 }, /* 110 */
++    { 0x00, 0x00, 0x06, 0x09, 0x09, 0x06, 0x00 }, /* 111 */
++    { 0x00, 0x00, 0x07, 0x09, 0x07, 0x01, 0x01 }, /* 112 */
++    { 0x00, 0x00, 0x0E, 0x09, 0x0E, 0x08, 0x08 }, /* 113 */
++    { 0x00, 0x00, 0x0D, 0x03, 0x01, 0x01, 0x00 }, /* 114 */
++    { 0x00, 0x00, 0x06, 0x01, 0x04, 0x03, 0x00 }, /* 115 */
++    { 0x00, 0x01, 0x07, 0x01, 0x01, 0x06, 0x00 }, /* 116 */
++    { 0x00, 0x00, 0x09, 0x09, 0x09, 0x0E, 0x00 }, /* 117 */
++    { 0x00, 0x00, 0x05, 0x05, 0x05, 0x02, 0x00 }, /* 118 */
++    { 0x00, 0x00, 0x11, 0x15, 0x15, 0x0A, 0x00 }, /* 119 */
++    { 0x00, 0x00, 0x09, 0x06, 0x06, 0x09, 0x00 }, /* 120 */
++    { 0x00, 0x00, 0x09, 0x09, 0x0E, 0x08, 0x06 }, /* 121 */
++    { 0x00, 0x00, 0x0F, 0x04, 0x02, 0x0F, 0x00 }, /* 122 */
++    { 0x06, 0x02, 0x03, 0x02, 0x02, 0x06, 0x00 }, /* 123 */
++    { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 }, /* 124 */
++    { 0x03, 0x02, 0x06, 0x02, 0x02, 0x03, 0x00 }, /* 125 */
++    { 0x00, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00 }, /* 126 */
++};
++static const uint8_t CAP_FONT_W[95] = {
++    2, 1, 3, 5, 3, 4, 4, 1, 2, 2, 3, 3, 2, 3, 1, 3, 4, 3, 4,
++    4, 4, 4, 4, 4, 4, 4, 1, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 3,
++    3, 4, 4, 3, 4, 4, 3, 5, 4, 4, 4, 4, 4, 4, 3, 4, 3, 5, 3,
++    3, 4, 2, 3, 2, 3, 4, 2, 4, 4, 3, 4, 4, 3, 4, 4, 1, 2, 3,
++    2, 5, 4, 4, 4, 4, 4, 3, 3, 4, 3, 5, 4, 4, 4, 3, 1, 3, 4,
++};
++
++/* ---- captions ------------------------------------------------------------ */
++
++/* Captions use the small proportional font (one blank column between
++ * glyphs): smaller and lighter than the toasts' bold 8x8, for text that
++ * sits over gameplay. A caption may use the frame's width less a gap at each
++ * side; longer text wraps at a space onto a second line, and only text that
++ * overflows both lines is cut with "...". Widths are 1x frame pixels. */
++#define CAP_MAX_CHARS 160
++#define CAP_MAX_LINES 2
++#define CAP_GLYPH_H   7
++#define CAP_LINE_GAP  1
++#define CAP_PAD_X     2
++#define CAP_PAD_Y     1
++#define CAP_FRAME_W   256
++#define CAP_SIDE_GAP  8
++#define CAP_IMG_W (CAP_FRAME_W * OSD_SCALE)
++#define CAP_IMG_H ((CAP_PAD_Y * 2 + CAP_MAX_LINES * CAP_GLYPH_H + \
++                    (CAP_MAX_LINES - 1) * CAP_LINE_GAP) * OSD_SCALE)
++static char     s_cap_line[CAP_MAX_LINES][CAP_MAX_CHARS + 4];
++static int      s_cap_lines;
++static int      s_cap_active;
++static Uint32   s_cap_expire_ms;
++static int      s_cap_anchor;
++static int      s_cap_margin;
++static int      s_cap_dirty;
++static uint32_t s_cap_img[CAP_IMG_W * CAP_IMG_H];
++static int      s_cap_w, s_cap_h;
++
++static int cap_glyph_w(unsigned char ch) {
++    if (ch < 32 || ch > 126) ch = '?';
++    return CAP_FONT_W[ch - 32];
++}
++
++static int cap_text_w(const char *s, int n) {
++    int w = 0;
++    for (int i = 0; i < n; i++) w += cap_glyph_w((unsigned char)s[i]) + 1;
++    return w ? w - 1 : 0;
++}
++
++/* How many leading chars of s (at most n) fit in max_w pixels. */
++static int cap_fit(const char *s, int n, int max_w) {
++    int w = -1, i = 0;
++    for (; i < n; i++) {
++        w += cap_glyph_w((unsigned char)s[i]) + 1;
++        if (w > max_w) break;
++    }
++    return i;
++}
++
++static void cap_set_line(int line, const char *s, int n, int dots) {
++    while (n > 0 && s[n - 1] == ' ') n--;
++    snprintf(s_cap_line[line], sizeof(s_cap_line[line]), "%.*s%s", n, s,
++             dots ? "..." : "");
++}
++
++static void cap_wrap(const char *msg, int max_w) {
++    const char *p = msg;
++    s_cap_lines = 0;
++    while (s_cap_lines < CAP_MAX_LINES) {
++        while (*p == ' ') p++;
++        if (!*p) break;
++        int n = (int)strlen(p);
++        if (n > CAP_MAX_CHARS) n = CAP_MAX_CHARS;
++        int fit = cap_fit(p, n, max_w);
++        if (fit == n && n == (int)strlen(p)) {
++            cap_set_line(s_cap_lines++, p, n, 0);
++            break;
++        }
++        if (s_cap_lines == CAP_MAX_LINES - 1) {
++            /* Last line: cut where the text and "..." fit. */
++            fit = cap_fit(p, n, max_w - cap_text_w("...", 3) - 1);
++            cap_set_line(s_cap_lines++, p, fit, 1);
++            break;
++        }
++        int brk = fit;                    /* p[fit] is the first char that overflows */
++        while (brk > 0 && p[brk] != ' ') brk--;
++        if (brk == 0) brk = fit;          /* one long word: break inside it */
++        if (brk == 0) brk = 1;
++        cap_set_line(s_cap_lines++, p, brk, 0);
++        p += brk;
++    }
++}
++
++void snes_osd_caption(const char *msg, int duration_ms, int anchor,
++                      int edge_margin) {
++    if (!msg || !msg[0]) return;
++    if (duration_ms <= 0) duration_ms = OSD_DEFAULT_MS;
++    s_cap_margin = edge_margin < 0 ? 0 : edge_margin;
++    s_cap_anchor = anchor;
++    /* ComposeOsd keeps a right-anchored caption (margin + 2) from the edge. */
++    const int box_w = anchor == SNES_OSD_CAPTION_BOTTOM_RIGHT
++        ? CAP_FRAME_W - (s_cap_margin + 2) - CAP_SIDE_GAP
++        : CAP_FRAME_W - 2 * CAP_SIDE_GAP;
++    cap_wrap(msg, box_w - 2 * CAP_PAD_X);
++    if (!s_cap_lines) return;
++    s_cap_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
++    s_cap_active = 1;
++    s_cap_dirty = 1;
++}
++
++static int caption_visible(void) {
++    if (!s_cap_active) return 0;
++    if ((int32_t)(SDL_GetTicks() - s_cap_expire_ms) >= 0) {
++        s_cap_active = 0;
++        s_needs_clear = 1;
++        return 0;
++    }
++    return 1;
++}
++
++int snes_osd_caption_image(const uint32_t **pixels, int *w, int *h,
++                           int *anchor, int *edge_margin) {
++    if (!caption_visible()) {
++        if (pixels) *pixels = NULL;
++        if (w) *w = 0;
++        if (h) *h = 0;
++        return 0;
++    }
++    if (s_cap_dirty) {
++        int line_w[CAP_MAX_LINES], text_w = 0;
++        for (int li = 0; li < s_cap_lines; li++) {
++            line_w[li] = cap_text_w(s_cap_line[li], (int)strlen(s_cap_line[li]));
++            if (line_w[li] > text_w) text_w = line_w[li];
++        }
++        s_cap_w = (CAP_PAD_X * 2 + text_w) * OSD_SCALE;
++        s_cap_h = (CAP_PAD_Y * 2 + s_cap_lines * CAP_GLYPH_H +
++                   (s_cap_lines - 1) * CAP_LINE_GAP) * OSD_SCALE;
++        /* Translucent, premultiplied: the game stays visible behind it. */
++        for (int i = 0; i < s_cap_w * s_cap_h; i++)
++            s_cap_img[i] = 0xB0080808u;
++        for (int li = 0; li < s_cap_lines; li++) {
++            const char *s = s_cap_line[li];
++            const int len = (int)strlen(s);
++            /* Lines sit against the caption's anchored side. */
++            const int slack = text_w - line_w[li];
++            int pen = CAP_PAD_X + (s_cap_anchor == SNES_OSD_CAPTION_BOTTOM_RIGHT
++                                       ? slack : slack / 2);
++            const int top = CAP_PAD_Y + li * (CAP_GLYPH_H + CAP_LINE_GAP);
++            for (int ci = 0; ci < len; ci++) {
++                unsigned char ch = (unsigned char)s[ci];
++                if (ch < 32 || ch > 126) ch = '?';
++                const uint8_t *g = CAP_FONT[ch - 32];
++                const int gw = CAP_FONT_W[ch - 32];
++                for (int row = 0; row < CAP_GLYPH_H; row++)
++                    for (int col = 0; col < gw; col++) {
++                        if (!(g[row] & (1u << col))) continue;
++                        const int x0 = (pen + col) * OSD_SCALE;
++                        const int y0 = (top + row) * OSD_SCALE;
++                        for (int dy = 0; dy < OSD_SCALE; dy++)
++                            for (int dx = 0; dx < OSD_SCALE; dx++)
++                                s_cap_img[(y0 + dy) * s_cap_w + x0 + dx] = 0xFFD8D8D8u;
++                    }
++                pen += gw + 1;
++            }
++        }
++        s_cap_dirty = 0;
++    }
++    if (pixels) *pixels = s_cap_img;
++    if (w) *w = s_cap_w;
++    if (h) *h = s_cap_h;
++    if (anchor) *anchor = s_cap_anchor;
++    if (edge_margin) *edge_margin = s_cap_margin;
++    return 1;
++}
++
+ /* ---- presenting ---------------------------------------------------------- */
+ 
+ int snes_osd_needs_present(void) {
+-    if (msg_visible() || s_status_active || volume_visible()) return 1;
++    if (msg_visible() || s_status_active || volume_visible() || caption_visible())
++        return 1;
+     return s_needs_clear;
+ }
+ 
+diff --git a/runner/src/snes_osd.h b/runner/src/snes_osd.h
+index 249ad91..b527aa5 100644
+--- a/runner/src/snes_osd.h
++++ b/runner/src/snes_osd.h
+@@ -87,6 +87,23 @@ void snes_osd_push_slot_saved(int slot);
+ void snes_osd_push_slot_loaded(int slot);
+ void snes_osd_push_slot_empty(int slot);
+ 
++/* ---- captions ----------------------------------------------------------- */
++
++/* A small caption at the BOTTOM of the frame, separate from the top-left
++ * toasts: for a title's own unobtrusive notices ("now playing"). anchor
++ * picks the position; edge_margin is how far, in frame pixels at 1x, to keep
++ * clear of the right edge for SNES_OSD_CAPTION_BOTTOM_RIGHT (a title's side
++ * panel, say). Text wider than the frame wraps at a space onto a second
++ * line; past that it is cut with "...". A new caption replaces the current
++ * one; duration_ms <= 0 uses the toast default. */
++#define SNES_OSD_CAPTION_BOTTOM_CENTER 0
++#define SNES_OSD_CAPTION_BOTTOM_RIGHT  1
++void snes_osd_caption(const char *msg, int duration_ms, int anchor,
++                      int edge_margin);
++/* The caption panel (ARGB, premultiplied) while it is showing, else 0. */
++int snes_osd_caption_image(const uint32_t **pixels, int *w, int *h,
++                           int *anchor, int *edge_margin);
++
+ /* ---- presenting --------------------------------------------------------- */
+ 
+ /*
+-- 
+2.50.0.windows.2
+

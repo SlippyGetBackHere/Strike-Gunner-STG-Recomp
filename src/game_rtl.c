@@ -352,6 +352,7 @@ static void StgStateSaveExtra(SaveLoadInfo *sli)
   StgExecState st = { STG_STATE_MAGIC, s_resume_pc, s_wai_halted ? 1u : 0u };
   sli->func(sli, &st, sizeof(st));
   RtlSaveExecutionState(sli);
+  StgCustomMusicSaveState(sli);
 }
 
 static void StgStateLoadExtra(SaveLoadInfo *sli, uint32_t version)
@@ -364,6 +365,8 @@ static void StgStateLoadExtra(SaveLoadInfo *sli, uint32_t version)
   if (s_loaded.magic != STG_STATE_MAGIC)
     return;
   s_loaded_valid = RtlLoadExecutionState(sli);
+  if (s_loaded_valid)
+    StgCustomMusicLoadState(sli);
 }
 
 static void StgStateLoaded(uint32_t version)

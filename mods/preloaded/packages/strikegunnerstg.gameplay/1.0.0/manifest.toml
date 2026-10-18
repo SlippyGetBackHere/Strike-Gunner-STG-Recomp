@@ -37,7 +37,7 @@ id = "strikegunnerstg.all_weapons"
 [[feature]]
 id = "custom_music"
 name = "Custom music"
-description = "Replace the game's music with your own WAV files. Put them in the folders inside the music folder (created the first time you play with this on): one folder per stage, plus title, weapon select, boss and an 'any' folder used for every empty one. Empty folders keep the original music. Sound effects are unchanged."
+description = "Replace the game's music with your own WAV, MP3, OGG, FLAC or MSU-1 .pcm files. Put them in the folders inside the music folder (created the first time you play with this on): one folder per stage, plus title, weapon select, boss and an 'any' folder used for every empty one. Empty folders keep the original music. Sound effects are unchanged. The README.txt in the music folder explains seamless loops."
 group = "Music"
 default_enabled = false
 
@@ -102,6 +102,57 @@ label = "Keep the original stage clear and game over jingles"
 description = "They are timed to the game; a long song would be cut off after a few seconds."
 type = "boolean"
 default = true
+
+[[option]]
+feature = "custom_music"
+id = "now_playing"
+label = "Show Now Playing"
+description = "Show the song's name for a few seconds when it starts, in small text at the bottom of the screen."
+type = "boolean"
+default = true
+
+[[option]]
+feature = "custom_music"
+id = "now_playing_position"
+label = "Now Playing position"
+type = "choice"
+default = "bottom_center"
+
+[[option.choice]]
+value = "bottom_center"
+label = "Bottom centre"
+
+[[option.choice]]
+value = "bottom_right"
+label = "Bottom right"
+
+[[option]]
+feature = "custom_music"
+id = "skip_key"
+label = "Skip to the next song"
+description = "Keyboard key that moves to the next song in the folder that is playing."
+type = "choice"
+default = "n"
+
+[[option.choice]]
+value = "n"
+label = "N"
+
+[[option.choice]]
+value = "m"
+label = "M"
+
+[[option.choice]]
+value = "end"
+label = "End"
+
+[[option.choice]]
+value = "backspace"
+label = "Backspace"
+
+[[option.choice]]
+value = "none"
+label = "None"
 
 [[resource]]
 feature = "custom_music"

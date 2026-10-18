@@ -45,7 +45,22 @@ add_executable(StrikeGunnerSTGSNESRecomp
     src/mod_infinite_lives.c
     src/mod_all_weapons.c
     src/mod_custom_music.c
+    src/music_decoders.c
 )
+
+# Custom music's compressed formats: each public-domain single-file decoder
+# under third_party/audio/ is built in when present (src/music_decoders.c).
+set(STG_AUDIO_DECODERS_DIR ${CMAKE_SOURCE_DIR}/third_party/audio)
+if(EXISTS ${STG_AUDIO_DECODERS_DIR}/dr_mp3.h)
+  target_compile_definitions(StrikeGunnerSTGSNESRecomp PRIVATE STG_HAVE_DR_MP3=1)
+endif()
+if(EXISTS ${STG_AUDIO_DECODERS_DIR}/dr_flac.h)
+  target_compile_definitions(StrikeGunnerSTGSNESRecomp PRIVATE STG_HAVE_DR_FLAC=1)
+endif()
+if(EXISTS ${STG_AUDIO_DECODERS_DIR}/stb_vorbis.c)
+  target_compile_definitions(StrikeGunnerSTGSNESRecomp PRIVATE STG_HAVE_STB_VORBIS=1)
+endif()
+target_include_directories(StrikeGunnerSTGSNESRecomp PRIVATE ${STG_AUDIO_DECODERS_DIR})
 
 # ROM identity. rom_identity.txt is the one place the digests live: the build
 # turns it into snesrecomp_rom_identity.h (SNESRECOMP_ROM_EXPECTED_SHA256 and
