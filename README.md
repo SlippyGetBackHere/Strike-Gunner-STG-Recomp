@@ -66,7 +66,7 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   Rust or other tools beyond what the launcher downloads. Checked on
   Windows from a fresh unzip: the code it generates matches a developer
   regeneration, and the game played through stage 1. Current release:
-  0.1.3 (tag `v0.1.3`). The framework's documentation and test suites are
+  0.2.0 (tag `v0.2.0`). The framework's documentation and test suites are
   left out of packs.
 - **Mods**: features on the launcher's Mods page, all off by default
   (`mods/preloaded/packages/strikegunnerstg.gameplay`). Off, the game is
@@ -76,7 +76,7 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   - *All weapons every stage* (0.1.3, `src/mod_all_weapons.c`): the used-weapon
     flags ($1BED / $1BFC, one byte per weapon) are cleared every frame, so
     the weapon select screen never marks a weapon NO USE.
-  - *Custom music* (`src/mod_custom_music.c`): song commands on APU port 0
+  - *Custom music* (0.2.0, `src/mod_custom_music.c`): song commands on APU port 0
     ($2140; $04 title, $03 weapon select, $01/$07/$06/$08/$09 stages, $02
     boss, $0A stage clear, $05 game over, $01 in stage 8 the ending, $14
     stop) are mapped to folders per stage and screen. A replaced song is
@@ -226,5 +226,7 @@ built into this target.
 
 This project's own source is under the license in `LICENSE`. The framework
 carries its own terms — see `snesrecomp/LICENSE` and
-`snesrecomp/THIRD_PARTY_ATTRIBUTION.md`. Neither covers the game data, which
-is not distributed here.
+`snesrecomp/THIRD_PARTY_ATTRIBUTION.md`. The audio decoders in
+`third_party/audio/` are public domain (or MIT / MIT-0, your choice); see
+`third_party/audio/README.md`. None of these covers the game data, which is
+not distributed here.
