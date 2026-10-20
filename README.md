@@ -37,10 +37,10 @@ game plays as the original unless you turn something on:
   players.
 - **All weapons every stage**: no weapon is ever marked NO USE on the weapon
   select screen.
-- **One-hit kills**: every enemy, bosses included, goes down to the first
+- **One-hit kills** (new in 0.3.0): every enemy, bosses included, goes down to the first
   hit. An easy mode, or a quick way through the game.
-- **Infinite special weapon**: the special weapon gauge never runs down.
-- **Stage select**: after choosing your special weapon, pick which of the
+- **Infinite special weapon** (new in 0.3.0): the special weapon gauge never runs down.
+- **Stage select** (new in 0.3.0): after choosing your special weapon, pick which of the
   eight stages to play.
 
 How to set them up is in [`PLAYING.md`](PLAYING.md#mods).
@@ -91,7 +91,7 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   Rust or other tools beyond what the launcher downloads. Checked on
   Windows from a fresh unzip: the code it generates matches a developer
   regeneration, and the game played through stage 1. Current release:
-  0.2.0 (tag `v0.2.0`). The framework's documentation and test suites are
+  0.3.0 (tag `v0.3.0`). The framework's documentation and test suites are
   left out of packs.
 - **Mods**: features on the launcher's Mods page, all off by default
   (`mods/preloaded/packages/strikegunnerstg.gameplay`). Off, the game is
@@ -101,16 +101,16 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   - *All weapons every stage* (0.1.3, `src/mod_all_weapons.c`): the used-weapon
     flags ($1BED / $1BFC, one byte per weapon) are cleared every frame, so
     the weapon select screen never marks a weapon NO USE.
-  - *One-hit kills* (`src/mod_one_hit_kill.c`): the two damage tables in ROM
+  - *One-hit kills* (0.3.0, `src/mod_one_hit_kill.c`): the two damage tables in ROM
     ($00:E599 main gun by shot power, low byte; $00:E579 special weapons)
     are raised in memory (restored when off). Enemy health is offset 6 of
     the object slot, 200 at most. Large background-drawn enemies mirror
     their health into $1ADE (400 for the stage 4 warships); a drop of
     exactly the patched $FF there is finished, along with the enemy's own
     copy.
-  - *Infinite special weapon* (`src/mod_infinite_special.c`): the gauges,
+  - *Infinite special weapon* (0.3.0, `src/mod_infinite_special.c`): the gauges,
     16-bit $023E / $0248 (full $0300), are put back when they drop.
-  - *Stage select* (`src/mod_stage_select.c`): when the weapon is confirmed
+  - *Stage select* (0.3.0, `src/mod_stage_select.c`): when the weapon is confirmed
     on the weapon select screen ($023D / $0247 set while its timer $0547
     runs, not in the demo, $17E6), the framework's choice list opens and the
     pick goes into $0230, which the game reads after the screen ($00:8088).
