@@ -23,25 +23,33 @@ a problem. The rest of this file is for building and developing the port.
 ## Mods
 
 Optional extras on the launcher's **Mods** page, all off by default, so the
-game plays as the original unless you turn something on:
+game plays as the original unless you turn something on. Mix and match them
+freely.
 
-- **Custom music** (new in 0.2.0): replace the game's music with your own.
-  Drop WAV, MP3, OGG, FLAC or MSU-1 tracks into a folder per stage or screen
+**Gameplay**
+
+- **Stage select** (new in 0.3.0): after you choose your special weapon, a
+  list of the eight stages appears and the game goes to the one you pick.
+  Show it before every stage or only when a game starts.
+- **One-hit kills** (new in 0.3.0): every enemy, bosses included, goes down
+  to the first hit. An easy mode, or a quick way through the game.
+- **Infinite special weapon** (new in 0.3.0): the special weapon gauge
+  never runs down, for either player.
+- **Infinite lives**: losing a life never uses up a spare one, for both
+  players.
+- **All weapons every stage**: no weapon is ever marked NO USE on the weapon
+  select screen.
+
+**Music**
+
+- **Custom music** (0.2.0): replace the game's music with your own. Drop
+  WAV, MP3, OGG, FLAC or MSU-1 tracks into a folder per stage or screen
   (title, weapon select, each stage, boss, stage clear, game over, ending)
   and they play in their place, in order or at random, matched to the
   game's loudness. Seamless intro + loop pairs, short fades between songs,
   a small "now playing" caption with its own on/off switch, a skip key, and
   save states and rewind that resume the same song where it was. Sound
   effects are untouched.
-- **Infinite lives**: losing a life never uses up a spare one, for both
-  players.
-- **All weapons every stage**: no weapon is ever marked NO USE on the weapon
-  select screen.
-- **One-hit kills** (new in 0.3.0): every enemy, bosses included, goes down to the first
-  hit. An easy mode, or a quick way through the game.
-- **Infinite special weapon** (new in 0.3.0): the special weapon gauge never runs down.
-- **Stage select** (new in 0.3.0): after choosing your special weapon, pick which of the
-  eight stages to play.
 
 How to set them up is in [`PLAYING.md`](PLAYING.md#mods).
 
