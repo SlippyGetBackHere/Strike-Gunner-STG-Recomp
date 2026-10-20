@@ -113,6 +113,17 @@ something on. Change them before clicking **Play**.
   Weapons used while it is on are forgotten by the game, so they stay
   available even after you turn it off, including in save states made while
   it was on.
+- **Gameplay options → One-hit kills**: every enemy, bosses included, is
+  destroyed by the first hit that damages it.
+- **Gameplay options → Infinite special weapon**: the special weapon gauge
+  (the bar in your side panel) never runs down. Works for both players.
+- **Gameplay options → Stage select**: after you choose your special weapon,
+  a list of the eight stages appears. Pick one with Up/Down and confirm with
+  B, A or Enter; the stage the game would play next is highlighted, so
+  confirming straight away changes nothing, and Y or Escape keeps it too.
+  The list can come up before every stage or only when a game starts.
+  Picking stage 1 later in a game starts over with fresh lives, as the game
+  does for a new game.
 - **Music → Custom music**: plays your own music instead of the game's.
   Sound effects are unchanged.
   1. Turn it on and play once: a `music` folder is created next to the game

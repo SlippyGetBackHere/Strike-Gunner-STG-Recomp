@@ -37,6 +37,11 @@ game plays as the original unless you turn something on:
   players.
 - **All weapons every stage**: no weapon is ever marked NO USE on the weapon
   select screen.
+- **One-hit kills**: every enemy, bosses included, goes down to the first
+  hit. An easy mode, or a quick way through the game.
+- **Infinite special weapon**: the special weapon gauge never runs down.
+- **Stage select**: after choosing your special weapon, pick which of the
+  eight stages to play.
 
 How to set them up is in [`PLAYING.md`](PLAYING.md#mods).
 
@@ -96,6 +101,20 @@ either player on keyboard or pad; a full 2P playthrough has not been done.
   - *All weapons every stage* (0.1.3, `src/mod_all_weapons.c`): the used-weapon
     flags ($1BED / $1BFC, one byte per weapon) are cleared every frame, so
     the weapon select screen never marks a weapon NO USE.
+  - *One-hit kills* (`src/mod_one_hit_kill.c`): the two damage tables in ROM
+    ($00:E599 main gun by shot power, low byte; $00:E579 special weapons)
+    are raised in memory (restored when off). Enemy health is offset 6 of
+    the object slot, 200 at most. Large background-drawn enemies mirror
+    their health into $1ADE (400 for the stage 4 warships); a drop of
+    exactly the patched $FF there is finished, along with the enemy's own
+    copy.
+  - *Infinite special weapon* (`src/mod_infinite_special.c`): the gauges,
+    16-bit $023E / $0248 (full $0300), are put back when they drop.
+  - *Stage select* (`src/mod_stage_select.c`): when the weapon is confirmed
+    on the weapon select screen ($023D / $0247 set while its timer $0547
+    runs, not in the demo, $17E6), the framework's choice list opens and the
+    pick goes into $0230, which the game reads after the screen ($00:8088).
+    Leaving stage 1 replays the game's new-game resets ($00:808D-80B9).
   - *Custom music* (0.2.0, `src/mod_custom_music.c`): song commands on APU port 0
     ($2140; $04 title, $03 weapon select, $01/$07/$06/$08/$09 stages, $02
     boss, $0A stage clear, $05 game over, $01 in stage 8 the ending, $14
@@ -146,7 +165,7 @@ cmake --build build -j
 
 The `snesrecomp` submodule comes from a fork,
 [SlippyGetBackHere/snesrecomp](https://github.com/SlippyGetBackHere/snesrecomp),
-branch `local/mode2-renderer-fix`: upstream plus fifteen changes this port needs
+branch `local/mode2-renderer-fix`: upstream plus sixteen changes this port needs
 that are not upstream. `git clone --recursive` fetches it.
 `patches/README.md` lists the fixes and how to re-apply them to upstream.
 

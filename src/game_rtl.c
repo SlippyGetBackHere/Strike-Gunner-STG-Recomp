@@ -373,6 +373,9 @@ static void StgStateLoaded(uint32_t version)
 {
   (void)version;
   StgInfiniteLivesForget();
+  StgInfiniteSpecialForget();
+  StgStageSelectForget();
+  StgOneHitKillForget();
   StgCustomMusicOnStateLoaded();
   /* The PPU's raster journal (ppu.c) holds the last field's register
    * baseline, which the renderer restores before drawing. It is not part of
@@ -418,6 +421,9 @@ static int StgExecStateLoad(const void *in, size_t size)
   s_resume_pc = st.resume_pc;
   s_wai_halted = st.wai_halted != 0;
   StgInfiniteLivesForget();
+  StgInfiniteSpecialForget();
+  StgStageSelectForget();
+  StgOneHitKillForget();
   return 1;
 }
 

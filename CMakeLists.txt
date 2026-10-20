@@ -45,6 +45,9 @@ add_executable(StrikeGunnerSTGSNESRecomp
     src/mod_infinite_lives.c
     src/mod_all_weapons.c
     src/mod_custom_music.c
+    src/mod_infinite_special.c
+    src/mod_one_hit_kill.c
+    src/mod_stage_select.c
     src/music_decoders.c
 )
 

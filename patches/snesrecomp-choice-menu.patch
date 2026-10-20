@@ -1,0 +1,359 @@
+From ae8d20cfddcc2d40104b73ff59abec68946d242d Mon Sep 17 00:00:00 2001
+From: SlippyGetBackHere <343265862+SlippyGetBackHere@users.noreply.github.com>
+Date: Mon, 19 Oct 2026 23:44:27 -0400
+Subject: [PATCH] host: a modal choice list a title's own code can open
+
+snes_choice_menu_open(title, items, count, initial, cancel_allowed,
+done, user) arms a "pick one" list (up to 16 items). The host notices
+at the next frame boundary and runs it like the save-state browser:
+the guest stays frozen, audio pauses, the list is drawn centred over the
+frozen picture, and `done` runs at that boundary with the choice (or -1
+when cancelled), so it may change guest RAM. Controls are the player's
+own bindings and pad: Up/Down move; A, B or Start choose; Y cancels;
+Enter/Space and Escape too. SNESRECOMP_CHOICE_MENU_AUTO=<index> answers
+it for headless runs. A game's stage select mod uses it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ runner/runner.cmake            |   1 +
+ runner/src/desktop/host_main.c |  51 +++++++++-
+ runner/src/snes_choice_menu.c  | 167 +++++++++++++++++++++++++++++++++
+ runner/src/snes_choice_menu.h  |  50 ++++++++++
+ 4 files changed, 268 insertions(+), 1 deletion(-)
+ create mode 100644 runner/src/snes_choice_menu.c
+ create mode 100644 runner/src/snes_choice_menu.h
+
+diff --git a/runner/runner.cmake b/runner/runner.cmake
+index d654764..d0f8fab 100644
+--- a/runner/runner.cmake
++++ b/runner/runner.cmake
+@@ -203,6 +203,7 @@ set(SNESRECOMP_RUNNER_SOURCES
+     ${SNESRECOMP_RUNNER_ROOT}/src/sha256.c
+     ${SNESRECOMP_RUNNER_ROOT}/src/keybinds.c
+     ${SNESRECOMP_RUNNER_ROOT}/src/snes_overlay_draw.c
++    ${SNESRECOMP_RUNNER_ROOT}/src/snes_choice_menu.c
+     ${SNESRECOMP_RUNNER_ROOT}/src/snes_runahead.c
+     ${SNESRECOMP_RUNNER_ROOT}/src/snes_savestate_menu.c
+     # The facade supplies offline stubs unless this target enables netplay.
+diff --git a/runner/src/desktop/host_main.c b/runner/src/desktop/host_main.c
+index ba443e9..d751679 100644
+--- a/runner/src/desktop/host_main.c
++++ b/runner/src/desktop/host_main.c
+@@ -59,6 +59,7 @@
+ #include "state_dump.h"
+ #include "config.h"
+ #include "display_aspect.h"
++#include "snes_choice_menu.h"
+ #include "crc32.h"
+ #include "util.h"
+ #include "spc_player.h"
+@@ -1588,7 +1589,8 @@ static void PumpOverlayEvents(bool *running, void (*key_down)(int key, int repea
+     case SDL_KEYDOWN:
+       /* The browser consumes SNES control bits too. Dispatch only controls;
+        * slot/reset hotkeys must not change the guest behind a modal panel. */
+-      if (key_down == snes_savestate_menu_handle_key) {
++      if (key_down == snes_savestate_menu_handle_key ||
++          key_down == snes_choice_menu_handle_key) {
+         int cmd = FindCmdForSdlKey(SNESRECOMP_SDL_EVENT_KEY(event),
+                                   SNESRECOMP_SDL_EVENT_MOD(event));
+         if (cmd >= kKeys_Controls && cmd <= kKeys_Controls_Last)
+@@ -1825,6 +1827,10 @@ static void PresentFrozenWithOverlay(void) {
+   const uint32_t *panel = NULL;
+   int pw = 0, ph = 0;
+   int is_menu = snes_savestate_menu_overlay_image(&panel, &pw, &ph) && panel;
++  /* A title's choice list (snes_choice_menu) is placed like the browser:
++   * centred over the frozen game. */
++  if (!is_menu && snes_choice_menu_overlay_image(&panel, &pw, &ph) && panel)
++    is_menu = 1;
+   if (!is_menu && !(snes_rewind_overlay_image(&panel, &pw, &ph) && panel))
+     panel = NULL;
+ 
+@@ -1936,6 +1942,44 @@ static void RunSavestateMenuLoop(bool *running) {
+                          frames);
+ }
+ 
++/* A title's choice list (snes_choice_menu), opened by its own code during a
++ * guest frame. Modal like the browser: the guest stays frozen at the frame
++ * boundary until a choice is made, and the choice's callback runs there.
++ * SNESRECOMP_CHOICE_MENU_AUTO=<index> (or -1 to cancel) answers it after a
++ * few presents, for headless runs that cannot press anything; with
++ * SNESRECOMP_OVERLAY_DUMP set those presents are what it captures. */
++static void RunChoiceMenuLoop(bool *running) {
++  unsigned frames = 0;
++  long auto_pick = -2;
++  {
++    const char *v = HostGetenv("CHOICE_MENU_AUTO");
++    if (v && *v) auto_pick = strtol(v, NULL, 0);
++  }
++  host_report_breadcrumb("choice menu OPEN - guest frozen until a choice is made");
++  g_overlay_modal = true;
++  SetAudioPaused(true);
++  while (snes_choice_menu_is_open() && *running) {
++    PumpOverlayEvents(running, &snes_choice_menu_handle_key);
++    if (!*running) {
++      snes_choice_menu_finish(-1);
++      break;
++    }
++    snes_choice_menu_poll_nav(OverlayNavInputs(), SDL_GetTicks());
++    if (!snes_choice_menu_is_open())
++      break;
++    PresentFrozenWithOverlay();
++    if (auto_pick != -2 && frames >= 3)
++      snes_choice_menu_finish((int)auto_pick);
++    SDL_Delay(8);
++    frames++;
++  }
++  g_overlay_modal = false;
++  ResetAudioTimeline();
++  SetAudioPaused(g_paused);
++  OverlayNoteClosed();
++  host_report_breadcrumb("choice menu CLOSED after %u pumps - guest resuming", frames);
++}
++
+ static void RewindKeyDown(int key, int repeat) {
+   (void)repeat;
+   switch (key) {
+@@ -4151,6 +4195,11 @@ error_reading:;
+       GameReset();
+       continue;   /* guest was frozen: no frame to run or present */
+     }
++    if (snes_choice_menu_is_open()) {
++      RunChoiceMenuLoop(&running);
++      GameReset();
++      continue;   /* guest was frozen: no frame to run or present */
++    }
+     if (g_paused) continue;
+     /* The script ticks HERE, after every path that can leave this iteration
+      * without running a frame. Ticked above the overlay checks, an
+diff --git a/runner/src/snes_choice_menu.c b/runner/src/snes_choice_menu.c
+new file mode 100644
+index 0000000..b788573
+--- /dev/null
++++ b/runner/src/snes_choice_menu.c
+@@ -0,0 +1,167 @@
++/* snes_choice_menu.c -- see snes_choice_menu.h. */
++#include "snes_choice_menu.h"
++#include "snes_overlay_draw.h"
++#include "desktop/sdl_compat.h"
++
++#include <stdio.h>
++#include <string.h>
++
++#define CM_W 512
++#define CM_H 448
++#define CM_SCALE 2                 /* 16-pixel glyphs on the 512x448 panel */
++#define CM_CHAR (8 * CM_SCALE)
++#define CM_ROW_H 24
++#define CM_PAD 16
++
++#define CM_COL_BOX    0xE0101820u
++#define CM_COL_EDGE   0xFF6A7A90u
++#define CM_COL_TITLE  0xFFFFD24Du
++#define CM_COL_TEXT   0xFFD8D8D8u
++#define CM_COL_SEL_BG 0xFF2C4A78u
++#define CM_COL_SEL    0xFFFFFFFFu
++#define CM_COL_HINT   0xFF9AA4B0u
++
++static int  s_open;
++static char s_title[SNES_CHOICE_MENU_MAX_TEXT];
++static char s_items[SNES_CHOICE_MENU_MAX_ITEMS][SNES_CHOICE_MENU_MAX_TEXT];
++static int  s_count, s_sel, s_cancel_allowed;
++static SnesChoiceMenuDone s_done;
++static void *s_user;
++static int  s_dirty;
++static uint32_t s_img[CM_W * CM_H];
++/* d-pad edge/repeat state */
++static uint32_t s_prev_pad, s_held_dir, s_held_since, s_last_repeat;
++static int s_nav_primed;
++
++int snes_choice_menu_open(const char *title, const char *const *items, int count,
++                          int initial, int cancel_allowed,
++                          SnesChoiceMenuDone done, void *user) {
++    if (s_open || !items || count <= 0 || !done) return 0;
++    if (count > SNES_CHOICE_MENU_MAX_ITEMS) count = SNES_CHOICE_MENU_MAX_ITEMS;
++    snprintf(s_title, sizeof(s_title), "%s", title ? title : "");
++    for (int i = 0; i < count; i++)
++        snprintf(s_items[i], sizeof(s_items[i]), "%s", items[i] ? items[i] : "");
++    s_count = count;
++    s_sel = initial >= 0 && initial < count ? initial : 0;
++    s_cancel_allowed = cancel_allowed;
++    s_done = done;
++    s_user = user;
++    s_open = 1;
++    s_dirty = 1;
++    /* The button that confirmed whatever led here is probably still held:
++     * the first poll only records it, so it cannot choose straight away. */
++    s_nav_primed = 0;
++    s_held_dir = 0;
++    return 1;
++}
++
++int snes_choice_menu_is_open(void) { return s_open; }
++
++void snes_choice_menu_finish(int index) {
++    if (!s_open) return;
++    if (index < 0 && !s_cancel_allowed) return;
++    SnesChoiceMenuDone done = s_done;
++    void *user = s_user;
++    s_open = 0;
++    s_done = NULL;
++    if (done) done(index < s_count ? index : -1, user);
++}
++
++static void move(int d) {
++    s_sel = (s_sel + d + s_count) % s_count;
++    s_dirty = 1;
++}
++
++void snes_choice_menu_handle_key(int key, int repeat) {
++    (void)repeat;
++    if (!s_open) return;
++    /* Movement comes through the player's own controls (poll_nav), which the
++     * host feeds from the keyboard bindings as well as the pad; handling the
++     * arrow keys here too would move twice. SDLK_* is unsigned under SDL3
++     * and signed under SDL2. */
++    if (key == (int)SDLK_RETURN || key == (int)SDLK_KP_ENTER || key == (int)SDLK_SPACE)
++        snes_choice_menu_finish(s_sel);
++    else if (key == (int)SDLK_ESCAPE)
++        snes_choice_menu_finish(-1);
++}
++
++void snes_choice_menu_poll_nav(uint32_t pad, uint32_t now) {
++    if (!s_open) return;
++    if (!s_nav_primed) {
++        s_prev_pad = pad;
++        s_nav_primed = 1;
++        return;
++    }
++    const uint32_t pressed = pad & ~s_prev_pad;
++    s_prev_pad = pad;
++    if (pressed & SNES_PAD_UP) move(-1);
++    if (pressed & SNES_PAD_DOWN) move(+1);
++    const uint32_t dir = pad & (SNES_PAD_UP | SNES_PAD_DOWN);
++    if (dir && dir != (SNES_PAD_UP | SNES_PAD_DOWN)) {
++        if (dir != s_held_dir) {
++            s_held_dir = dir;
++            s_held_since = s_last_repeat = now;
++        } else if (now - s_held_since >= SNES_OVL_REPEAT_DELAY &&
++                   now - s_last_repeat >= SNES_OVL_REPEAT_RATE) {
++            move((dir & SNES_PAD_UP) ? -1 : +1);
++            s_last_repeat = now;
++        }
++    } else {
++        s_held_dir = 0;
++    }
++    if (pressed & (SNES_PAD_A | SNES_PAD_B | SNES_PAD_START))
++        snes_choice_menu_finish(s_sel);
++    else if (pressed & SNES_PAD_Y)
++        snes_choice_menu_finish(-1);
++}
++
++static void text(int x, int y, const char *s, uint32_t col) {
++    snes_ovl_draw_text(s_img, CM_W, CM_H, x, y, s, col, CM_SCALE);
++}
++
++static void render(void) {
++    memset(s_img, 0, sizeof(s_img));
++    int widest = (int)strlen(s_title);
++    for (int i = 0; i < s_count; i++) {
++        int n = (int)strlen(s_items[i]) + 2;    /* room for the marker */
++        if (n > widest) widest = n;
++    }
++    const char *hint = s_cancel_allowed ? "A/ENTER: CHOOSE   Y/ESC: CANCEL"
++                                        : "A/ENTER: CHOOSE";
++    int hint_w = (int)strlen(hint) * 8;          /* hint at scale 1 */
++    int box_w = widest * CM_CHAR + 2 * CM_PAD;
++    if (hint_w + 2 * CM_PAD > box_w) box_w = hint_w + 2 * CM_PAD;
++    if (box_w > CM_W - 16) box_w = CM_W - 16;
++    const int box_h = CM_PAD + CM_CHAR + 12 + s_count * CM_ROW_H + 12 + 8 + CM_PAD;
++    const int bx = (CM_W - box_w) / 2, by = (CM_H - box_h) / 2;
++    snes_ovl_fill_rect(s_img, CM_W, CM_H, bx, by, box_w, box_h, CM_COL_BOX);
++    snes_ovl_stroke_rect(s_img, CM_W, CM_H, bx, by, box_w, box_h, CM_COL_EDGE);
++    int y = by + CM_PAD;
++    text(bx + (box_w - (int)strlen(s_title) * CM_CHAR) / 2, y, s_title, CM_COL_TITLE);
++    y += CM_CHAR + 12;
++    for (int i = 0; i < s_count; i++) {
++        const int sel = i == s_sel;
++        if (sel)
++            snes_ovl_fill_rect(s_img, CM_W, CM_H, bx + 4, y - 4, box_w - 8, CM_ROW_H,
++                               CM_COL_SEL_BG);
++        char line[SNES_CHOICE_MENU_MAX_TEXT + 4];
++        snprintf(line, sizeof(line), "%s%s", sel ? "> " : "  ", s_items[i]);
++        text(bx + CM_PAD, y, line, sel ? CM_COL_SEL : CM_COL_TEXT);
++        y += CM_ROW_H;
++    }
++    y += 12;
++    snes_ovl_draw_text(s_img, CM_W, CM_H, bx + (box_w - hint_w) / 2, y, hint,
++                       CM_COL_HINT, 1);
++}
++
++int snes_choice_menu_overlay_image(const uint32_t **pixels, int *w, int *h) {
++    if (!s_open) return 0;
++    if (s_dirty) {
++        render();
++        s_dirty = 0;
++    }
++    if (pixels) *pixels = s_img;
++    if (w) *w = CM_W;
++    if (h) *h = CM_H;
++    return 1;
++}
+diff --git a/runner/src/snes_choice_menu.h b/runner/src/snes_choice_menu.h
+new file mode 100644
+index 0000000..c391833
+--- /dev/null
++++ b/runner/src/snes_choice_menu.h
+@@ -0,0 +1,50 @@
++#ifndef SNES_CHOICE_MENU_H
++#define SNES_CHOICE_MENU_H
++
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* A modal "pick one" list a title's trusted code (a mod plugin, say) can put
++ * up between guest frames: a stage select, a difficulty prompt.
++ *
++ * Opening it only arms it; the desktop host notices at the next frame
++ * boundary, freezes the guest exactly like the save-state browser (no guest
++ * code runs, audio pauses), draws the list over the frozen picture, and
++ * resumes once a choice is made. `done` runs on the host thread with the
++ * guest at that frame boundary, so it may change guest RAM.
++ *
++ * Controls are the player's own (keyboard bindings and pad alike): Up/Down
++ * move; A, B or Start chooses, Y cancels (when `cancel_allowed`, reporting
++ * -1). Enter or Space also chooses and Escape cancels. B chooses because in
++ * many games it is the confirm button, and a list the player reaches by
++ * confirming something should not need a different one.
++ *
++ * Items are copied; up to SNES_CHOICE_MENU_MAX_ITEMS of up to
++ * SNES_CHOICE_MENU_MAX_TEXT-1 characters. Returns 0 when one is already
++ * open or the arguments are unusable. */
++#define SNES_CHOICE_MENU_MAX_ITEMS 16
++#define SNES_CHOICE_MENU_MAX_TEXT  40
++
++typedef void (*SnesChoiceMenuDone)(int index, void *user);
++
++int snes_choice_menu_open(const char *title, const char *const *items, int count,
++                          int initial, int cancel_allowed,
++                          SnesChoiceMenuDone done, void *user);
++int snes_choice_menu_is_open(void);
++
++/* Host side. */
++void snes_choice_menu_handle_key(int sdl_key, int repeat);
++void snes_choice_menu_poll_nav(uint32_t pad, uint32_t now_ms);   /* SNES_PAD_* bits */
++/* Finish: index >= 0 chooses it, -1 cancels. Calls `done` once. */
++void snes_choice_menu_finish(int index);
++/* The panel, ARGB8888 straight alpha, transparent outside its box. */
++int snes_choice_menu_overlay_image(const uint32_t **pixels, int *w, int *h);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* SNES_CHOICE_MENU_H */
+-- 
+2.50.0.windows.2
+

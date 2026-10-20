@@ -17,6 +17,12 @@ void GameRequestImmediateResume(void);
 /* Infinite-lives plugin (mod_infinite_lives.c): drop the remembered counts
  * after a state load or rewind, so going back is never "corrected". */
 void StgInfiniteLivesForget(void);
+/* Infinite special weapon (src/mod_infinite_special.c) and Stage select
+ * (src/mod_stage_select.c): drop what they remember of the last frame. */
+void StgInfiniteSpecialForget(void);
+void StgStageSelectForget(void);
+/* One-hit kills (src/mod_one_hit_kill.c). */
+void StgOneHitKillForget(void);
 
 /* Custom-music plugin (mod_custom_music.c): the machine rebooted (its sound
  * driver is uploaded again), or a save state was loaded. */

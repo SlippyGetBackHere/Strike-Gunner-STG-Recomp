@@ -35,6 +35,54 @@ feature = "all_weapons"
 id = "strikegunnerstg.all_weapons"
 
 [[feature]]
+id = "one_hit_kill"
+name = "One-hit kills"
+description = "Every enemy, bosses included, is destroyed by the first hit that damages it. An easy mode, or a quick way through the game."
+group = "Gameplay"
+default_enabled = false
+
+[[plugin]]
+feature = "one_hit_kill"
+id = "strikegunnerstg.one_hit_kill"
+
+[[feature]]
+id = "infinite_special"
+name = "Infinite special weapon"
+description = "The special weapon gauge never runs down, so the special weapon can be used as often as you like. Works for both players."
+group = "Gameplay"
+default_enabled = false
+
+[[plugin]]
+feature = "infinite_special"
+id = "strikegunnerstg.infinite_special"
+
+[[feature]]
+id = "stage_select"
+name = "Stage select"
+description = "After you choose your special weapon, a list of the eight stages appears: pick one and the game goes to that stage. The stage the game would play next is highlighted, so confirming straight away changes nothing. Picking stage 1 starts the game over with fresh lives."
+group = "Gameplay"
+default_enabled = false
+
+[[plugin]]
+feature = "stage_select"
+id = "strikegunnerstg.stage_select"
+
+[[option]]
+feature = "stage_select"
+id = "when"
+label = "Show the stage list"
+type = "choice"
+default = "every"
+
+[[option.choice]]
+value = "every"
+label = "Before every stage"
+
+[[option.choice]]
+value = "start"
+label = "Only when a game starts"
+
+[[feature]]
 id = "custom_music"
 name = "Custom music"
 description = "Replace the game's music with your own WAV, MP3, OGG, FLAC or MSU-1 .pcm files. Put them in the folders inside the music folder (created the first time you play with this on): one folder per stage, plus title, weapon select, boss and an 'any' folder used for every empty one. Empty folders keep the original music. Sound effects are unchanged. The README.txt in the music folder explains seamless loops."

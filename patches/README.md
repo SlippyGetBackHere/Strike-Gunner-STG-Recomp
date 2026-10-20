@@ -2,7 +2,7 @@
 
 The `snesrecomp` submodule is pinned to branch `local/mode2-renderer-fix` of
 the fork https://github.com/SlippyGetBackHere/snesrecomp. It is upstream
-`e54427bad93fb75729ce8214fdd7a46e197e6223` plus fifteen commits, one per patch
+`e54427bad93fb75729ce8214fdd7a46e197e6223` plus sixteen commits, one per patch
 file below, applied in this order.
 
 ## snesrecomp-mode2-renderer.patch
@@ -109,6 +109,12 @@ A small caption at the bottom of the frame (`snes_osd_caption`), centred or
 against the right edge, in a new small proportional font; long text wraps
 onto a second line. The Custom music mod's "now playing" display uses it.
 
+## snesrecomp-choice-menu.patch
+
+A modal "pick one" list a title's own code can open between frames
+(`snes_choice_menu_open`): the guest freezes like it does for the save-state
+browser until the player chooses. The Stage select mod uses it.
+
 ## Re-applying them
 
 Moving to a newer upstream framework drops them, and they are the way back if
@@ -130,6 +136,7 @@ the fork is ever unavailable. In either case, from the project root:
     git -C snesrecomp apply ../patches/snesrecomp-pack-exclude-dir.patch
     git -C snesrecomp apply ../patches/snesrecomp-mod-audio-stream.patch
     git -C snesrecomp apply ../patches/snesrecomp-osd-caption.patch
+    git -C snesrecomp apply ../patches/snesrecomp-choice-menu.patch
 
 then commit inside `snesrecomp` and commit the new submodule pointer here.
 Drop any patch upstream has already absorbed.
